@@ -43,6 +43,26 @@ textarea { resize: vertical; min-height: 100px; }
     .original-print { color: #555; }
     button, select { display: none !important; }
     .print-empty { display: none !important; }
+    @media print {
+    .no-print {
+        display: none !important;
+    }
+
+    .rating-select {
+        display: none !important;
+    }
+
+    .rating-description {
+        display: none !important;
+    }
+
+    .rating-text,
+    .rating-text.hidden {
+        display: inline !important;
+        visibility: visible !important;
+        color: #222 !important;
+    }
+}
 }
 .print-text { display: none; }
 </style>
@@ -306,16 +326,29 @@ function carregarDados() {
 }
 
 function atualizarSignificado(nome) {
-    const escolhido = document.querySelector(`input[name="${nome}"]:checked`);
+    const campoNota = document.querySelector(`select[name="${nome}"]`);
     const descricao = document.getElementById(`desc_${nome}`);
     const impressao = document.getElementById(`print_${nome}`);
-    if (!descricao) return;
 
-    const item = escala.find(e => e.valor === Number(escolhido?.value));
-    descricao.textContent = item ? item.label : "Selecione uma nota";
-    descricao.className = "rating-description text-sm text-gray-600";
-    if (item && item.valor <= 2) descricao.classList.add("font-semibold", "text-orange-700");
-    if (impressao) impressao.textContent = item ? `${item.valor} — ${item.label}` : "Não avaliado";
+    if (!campoNota || !descricao || !impressao) return;
+
+    const valor = campoNota.value;
+    const item = escala.find(e => String(e.valor) === valor);
+
+    if (item) {
+        descricao.textContent = item.label;
+        descricao.className = "rating-description text-sm text-gray-700";
+
+        if (item.valor <= 2) {
+            descricao.classList.add("font-semibold", "text-orange-700");
+        }
+
+        impressao.textContent = `${item.valor} — ${item.label}`;
+    } else {
+        descricao.textContent = "Selecione uma nota";
+        impressao.textContent = "Não avaliado";
+    }
+
 }
 
 function renderizarQuestionario() {
