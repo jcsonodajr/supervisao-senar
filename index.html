@@ -2,890 +2,501 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#16a34a">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#16a34a">
+<title>Supervisão de Instrutoria - SENAR</title>
+<link rel="manifest" href="manifest.json">
+<script src="https://cdn.tailwindcss.com"></script>
 
-    <title>Supervisão de Instrutoria - SENAR</title>
+<style>
+* { box-sizing: border-box; }
+body { -webkit-tap-highlight-color: transparent; }
+textarea { resize: vertical; min-height: 100px; }
+.status-salvamento { font-size: 12px; }
+.pdf-question { break-inside: avoid; page-break-inside: avoid; }
+.pdf-section-title { break-after: avoid; page-break-after: avoid; }
+.rating-select { width: 76px; min-width: 76px; }
+.rating-description { min-width: 155px; }
+.final-text { min-height: 120px; }
+@media print {
+    @page { size: A4; margin: 14mm; }
+    body { background: white !important; padding: 0 !important; color: #222 !important; font: 10pt Arial, sans-serif; }
+    main { max-width: none !important; margin: 0 !important; padding: 0 !important; box-shadow: none !important; border: 0 !important; }
+    .no-print, .screen-only { display: none !important; }
+    #relatorio-pdf { width: 100% !important; }
+    header { margin-bottom: 18px !important; }
+    h1 { font-size: 21pt !important; }
+    h2 { font-size: 13pt !important; }
+    .pdf-section-title { background: #e8f3e8 !important; color: #14532d !important; print-color-adjust: exact; }
+    .pdf-question { break-inside: avoid; page-break-inside: avoid; }
+    .pdf-section { break-inside: auto; }
+    .rating-description { min-width: 0; }
+    .rating-row { display: flex; gap: 8px; align-items: flex-start; }
+    .rating-number { font-weight: bold; white-space: nowrap; }
+    .rating-text { display: inline !important; font-size: 9pt; }
+    .print-text { display: block !important; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.45; }
+    textarea { display: none !important; }
+    .text-section { break-inside: auto; page-break-inside: auto; }
+    .text-section h2 { break-after: avoid; page-break-after: avoid; }
+    .text-section .print-text { margin-top: 6px; }
+    .original-print { color: #555; }
+    button, select { display: none !important; }
+    .print-empty { display: none !important; }
+}
+.print-text { display: none; }
+</style>
 
-    <link rel="manifest" href="manifest.json">
-
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-
-    <style>
-        body {
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        textarea {
-            resize: vertical;
-        }
-
-        .pdf-question {
-            break-inside: avoid;
-            page-break-inside: avoid;
-        }
-
-        .pdf-section-title {
-            break-after: avoid;
-            page-break-after: avoid;
-        }
-
-        .status-salvamento {
-            font-size: 12px;
-        }
-
-        /* Regras aplicadas durante a impressão convencional */
-        @media print {
-            .no-print {
-                display: none !important;
-            }
-
-            body {
-                background: white !important;
-                padding: 0 !important;
-            }
-
-            #relatorio-pdf {
-                box-shadow: none !important;
-                max-width: none !important;
-                padding: 0 !important;
-            }
-
-            .pdf-question {
-                break-inside: avoid;
-                page-break-inside: avoid;
-            }
-        }
-    </style>
-
-    <script>
-        if ("serviceWorker" in navigator) {
-            window.addEventListener("load", () => {
-                navigator.serviceWorker.register("./sw.js")
-                    .catch(error => {
-                        console.error("Falha ao registrar Service Worker:", error);
-                    });
-            });
-        }
-    </script>
+<script>
+if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./sw.js").catch(console.error);
+    });
+}
+</script>
 </head>
 
 <body class="bg-gray-100 text-gray-800 p-2 md:p-8 font-sans">
+<main class="max-w-5xl mx-auto bg-white p-4 md:p-8 rounded-lg shadow-md">
+<div id="relatorio-pdf">
+<header class="border-b-2 border-green-600 pb-4 mb-6">
+    <h1 class="text-2xl md:text-3xl font-bold text-green-700">Supervisão de Instrutoria</h1>
+    <p class="text-sm text-gray-500 mt-1">Instrumento de Avaliação de Desempenho e Metodologia</p>
+    <p class="text-xs text-gray-500 mt-2" id="data-relatorio"></p>
+</header>
 
-    <main class="max-w-5xl mx-auto bg-white p-4 md:p-8 rounded-lg shadow-md">
+<form id="supervisao-form">
+<div id="blocos-avaliacao"></div>
 
-        <div id="relatorio-pdf">
+<section class="mt-8 space-y-6">
+    <div class="screen-only">
+        <label for="rascunho" class="block font-bold mb-2">Rascunho de Campo</label>
+        <p class="text-sm text-gray-500 mb-2">Registre fatos, exemplos e situações observadas durante a supervisão.</p>
+        <textarea id="rascunho" class="w-full border p-3 rounded" rows="4" placeholder="Anotações da supervisão..."></textarea>
+    </div>
 
-            <header class="border-b-2 border-green-600 pb-4 mb-6">
-                <h1 class="text-2xl md:text-3xl font-bold text-green-700">
-                    Supervisão de Instrutoria
-                </h1>
-
-                <p class="text-sm text-gray-500 mt-1">
-                    Instrumento de Avaliação de Desempenho e Metodologia
-                </p>
-
-                <p class="text-xs text-gray-500 mt-2" id="data-relatorio"></p>
-            </header>
-
-            <form id="supervisao-form">
-
-                <div id="blocos-avaliacao"></div>
-
-                <section class="mt-8 space-y-6">
-
-                    <div>
-                        <label for="rascunho"
-                               class="block font-bold text-gray-700 mb-2">
-                            Rascunho de Campo
-                        </label>
-
-                        <p class="text-sm text-gray-500 mb-2">
-                            Registre as observações feitas durante a supervisão.
-                            O conteúdo original será preservado.
-                        </p>
-
-                        <textarea
-                            id="rascunho"
-                            name="rascunho"
-                            class="w-full border p-3 rounded focus:ring-green-500 focus:border-green-500"
-                            rows="4"
-                            placeholder="Registre fatos, exemplos, situações observadas e justificativas para as avaliações."
-                        ></textarea>
-                    </div>
-
-                    <section class="border rounded-lg p-4 space-y-4">
-
-                        <h2 class="text-lg font-bold text-green-700">
-                            Aspectos positivos da instrutoria
-                        </h2>
-
-                        <div>
-                            <label for="aspectos_positivos_original"
-                                   class="block font-semibold mb-2">
-                                Texto original
-                            </label>
-
-                            <textarea
-                                id="aspectos_positivos_original"
-                                name="aspectos_positivos_original"
-                                class="w-full border p-3 rounded"
-                                rows="4"
-                                placeholder="Escreva suas observações sobre os aspectos positivos."
-                            ></textarea>
-                        </div>
-
-                        <div>
-                            <label for="aspectos_positivos"
-                                   class="block font-semibold text-green-700 mb-2">
-                                Texto revisado / versão final
-                            </label>
-
-                            <textarea
-                                id="aspectos_positivos"
-                                name="aspectos_positivos"
-                                class="w-full border border-green-300 bg-green-50 p-3 rounded"
-                                rows="4"
-                                placeholder="A versão revisada será apresentada aqui para conferência e edição."
-                            ></textarea>
-
-                            <p class="text-xs text-gray-500 mt-1">
-                                Você pode editar esta versão antes de gerar o relatório.
-                            </p>
-                        </div>
-
-                    </section>
-
-                    <section class="border rounded-lg p-4 space-y-4">
-
-                        <h2 class="text-lg font-bold text-orange-700">
-                            Aspectos discutidos para melhoria do desempenho e sugestões
-                        </h2>
-
-                        <div>
-                            <label for="aspectos_melhoria_original"
-                                   class="block font-semibold mb-2">
-                                Texto original
-                            </label>
-
-                            <textarea
-                                id="aspectos_melhoria_original"
-                                name="aspectos_melhoria_original"
-                                class="w-full border p-3 rounded"
-                                rows="4"
-                                placeholder="Registre os pontos de melhoria e as sugestões discutidas."
-                            ></textarea>
-                        </div>
-
-                        <div>
-                            <label for="aspectos_melhoria"
-                                   class="block font-semibold text-orange-700 mb-2">
-                                Texto revisado / versão final
-                            </label>
-
-                            <textarea
-                                id="aspectos_melhoria"
-                                name="aspectos_melhoria"
-                                class="w-full border border-orange-300 bg-orange-50 p-3 rounded"
-                                rows="4"
-                                placeholder="A versão revisada será apresentada aqui para conferência e edição."
-                            ></textarea>
-
-                            <p class="text-xs text-gray-500 mt-1">
-                                Você pode editar esta versão antes de gerar o relatório.
-                            </p>
-                        </div>
-
-                    </section>
-
-                </section>
-            </form>
+    <section class="text-section border rounded-lg p-4 space-y-4">
+        <h2 class="text-lg font-bold text-green-700">Aspectos positivos da instrutoria</h2>
+        <div class="screen-only">
+            <label for="aspectos_positivos_original" class="block font-semibold mb-2">Texto original</label>
+            <textarea id="aspectos_positivos_original" class="w-full border p-3 rounded" rows="4" placeholder="Registre os aspectos positivos observados."></textarea>
         </div>
-
-        <div class="no-print mt-6 border-t pt-5 space-y-3">
-
-            <p id="status-salvamento"
-               class="status-salvamento text-gray-500"
-               role="status"
-               aria-live="polite">
-                Preparando o formulário...
-            </p>
-
-            <div class="flex flex-wrap gap-3">
-
-                <button
-                    type="button"
-                    id="btn-ia"
-                    onclick="refinarComIA()"
-                    class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-5 rounded shadow flex-1"
-                >
-                    Refinar textos com IA
-                </button>
-
-                <button
-                    type="button"
-                    onclick="gerarPDF()"
-                    class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-5 rounded shadow flex-1"
-                >
-                    Baixar PDF
-                </button>
-
-                <button
-                    type="button"
-                    onclick="exportarJSON()"
-                    class="bg-gray-800 hover:bg-gray-900 text-white font-bold py-3 px-5 rounded shadow flex-1"
-                >
-                    Exportar JSON
-                </button>
-
-                <button
-                    type="button"
-                    onclick="salvarAgora()"
-                    class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-5 rounded flex-1"
-                >
-                    Salvar agora
-                </button>
-
+        <div>
+            <div class="screen-only flex flex-wrap items-center justify-between gap-2 mb-2">
+                <label for="aspectos_positivos" class="font-semibold text-green-700">Texto revisado / versão final</label>
+                <button type="button" onclick="copiarTexto('aspectos_positivos')" class="bg-green-100 hover:bg-green-200 text-green-800 rounded px-3 py-2 text-sm font-semibold">Copiar texto</button>
             </div>
-
-            <p class="text-xs text-gray-500">
-                Os dados são armazenados neste navegador. Exporte o JSON
-                regularmente para manter uma cópia de segurança.
-            </p>
+            <textarea id="aspectos_positivos" class="final-text screen-only w-full border border-green-300 bg-green-50 p-3 rounded" rows="4" placeholder="A versão revisada pela IA aparecerá aqui."></textarea>
+            <div id="print-aspectos_positivos" class="print-text"></div>
         </div>
+        <div class="screen-only">
+            <p class="text-xs text-gray-500">Confira e edite o texto antes de copiar ou gerar o PDF.</p>
+        </div>
+    </section>
 
-    </main>
+    <section class="text-section border rounded-lg p-4 space-y-4">
+        <h2 class="text-lg font-bold text-orange-700">Aspectos discutidos para melhoria do desempenho e sugestões</h2>
+        <div class="screen-only">
+            <label for="aspectos_melhoria_original" class="block font-semibold mb-2">Texto original</label>
+            <textarea id="aspectos_melhoria_original" class="w-full border p-3 rounded" rows="4" placeholder="Registre os pontos de melhoria e as sugestões discutidas."></textarea>
+        </div>
+        <div>
+            <div class="screen-only flex flex-wrap items-center justify-between gap-2 mb-2">
+                <label for="aspectos_melhoria" class="font-semibold text-orange-700">Texto revisado / versão final</label>
+                <button type="button" onclick="copiarTexto('aspectos_melhoria')" class="bg-orange-100 hover:bg-orange-200 text-orange-800 rounded px-3 py-2 text-sm font-semibold">Copiar texto</button>
+            </div>
+            <textarea id="aspectos_melhoria" class="final-text screen-only w-full border border-orange-300 bg-orange-50 p-3 rounded" rows="4" placeholder="A versão revisada pela IA aparecerá aqui."></textarea>
+            <div id="print-aspectos_melhoria" class="print-text"></div>
+        </div>
+        <div class="screen-only">
+            <p class="text-xs text-gray-500">Confira e edite o texto antes de copiar ou gerar o PDF.</p>
+        </div>
+    </section>
+</section>
+</form>
+</div>
 
-    <script>
-        "use strict";
+<div class="no-print mt-6 border-t pt-5 space-y-3">
+    <p id="status-salvamento" class="status-salvamento text-gray-500" role="status" aria-live="polite">Preparando o formulário...</p>
+    <div class="flex flex-wrap gap-3">
+        <button type="button" id="btn-ia" onclick="refinarComIA()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-5 rounded shadow flex-1">Refinar textos com IA</button>
+        <button type="button" onclick="gerarPDF()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-5 rounded shadow flex-1">Imprimir / Salvar PDF</button>
+        <button type="button" onclick="exportarJSON()" class="bg-gray-800 hover:bg-gray-900 text-white font-bold py-3 px-5 rounded shadow flex-1">Exportar JSON</button>
+        <button type="button" onclick="salvarAgora()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-5 rounded flex-1">Salvar agora</button>
+    </div>
+    <p class="text-xs text-gray-500">Os dados são armazenados neste navegador. Exporte o JSON regularmente para manter uma cópia de segurança.</p>
+</div>
+</main>
 
-        const CHAVE_STORAGE = "supervisaoSENAR";
-        const VERSAO_DADOS = 2;
+<script>
+"use strict";
 
-        const escala = [
-            { valor: 4, label: "Sim, plenamente" },
-            { valor: 3, label: "Sim, parcialmente" },
-            { valor: 2, label: "Precisa melhorar" },
-            { valor: 1, label: "Não" },
-            { valor: 0, label: "Não observado" }
-        ];
+const CHAVE_STORAGE = "supervisaoSENAR";
+const VERSAO_DADOS = 3;
 
-        const questionario = [
-            {
-                categoria: "Objetivos",
-                itens: [
-                    "Apresentou, aos participantes, os objetivos instrucionais ou os resultados esperados.",
-                    "Seguiu os objetivos planejados, numa sequência lógica."
-                ]
-            },
-            {
-                categoria: "Conteúdo programático",
-                itens: [
-                    "Seguiu a sequência planejada para desenvolvimento do conteúdo.",
-                    "Usou exemplos baseados em situações vivenciadas pelos participantes.",
-                    "Desenvolveu o conteúdo dentro do tempo previsto.",
-                    "A parte teórica desenvolveu-se conjuntamente á prática.",
-                    "Compatibilizou o conteúdo com interesses e necessidades dos participantes.",
-                    "Ao iniciar novo conteúdo, apresentou a sua relação com outros já abordados.",
-                    "Demonstrou segurança em seus posicionamentos.",
-                    "Utilizou a linguagem escrita e oral corretamente.",
-                    "Foi claro e objetivo na exposição dos assuntos.",
-                    "Abordou questões relacionadas a saúde e segurança do trabalhador e/ou aspectos sobre meio ambiente, cidadania, qualidade e produtividade, sempre que pertinentes.",
-                    "Decodificou os termos técnicos, quando utilizados.",
-                    "Evidenciou a aplicabilidade prática do conteúdo ministrado."
-                ]
-            },
-            {
-                categoria: "Desenvolvimentos das técnicas instrucionais",
-                itens: [
-                    "Dominou técnicas instrucionais aplicadas.",
-                    "As técnicas utilizadas foram apropriadas ao conteúdo ministrado.",
-                    "As técnicas utilizadas foram compatíveis com as características dos participantes."
-                ]
-            },
-            {
-                categoria: "Recursos Instrucionais",
-                itens: [
-                    "Os recursos instrucionais necessários para o desenvolvimento do evento foram conferidos e testados.",
-                    "Foram utilizados no momento oportuno.",
-                    "Facilitaram a compreensão do assunto.",
-                    "Foram disponibilizados na quantidade apropriada ao número de participantes.",
-                    "Foram adequados às características dos participantes.",
-                    "Apresentaram bom estado de conservação, sem defeitos comprometedores para a aprendizagem.",
-                    "Estavam adequados ao local do evento."
-                ]
-            },
-            {
-                categoria: "Avaliação",
-                itens: [
-                    "Aplicou: diagnóstica, formativa somativa.",
-                    "Os procedimentos de avaliação foram compatíveis com as características dos participantes.",
-                    "Informou aos participantes sobre seus acertos e erros, apresentando-lhes respostas/comportamento corretos."
-                ]
-            },
-            {
-                categoria: "Plano instrucional",
-                itens: [
-                    "Portou o plano instrucional em formato físico.",
-                    "Seguiu o plano instrucional elaborado.",
-                    "Participou da elaboração do plano instrucional.",
-                    "Necessitou ajustar/modificar o plano instrucional."
-                ]
-            },
-            {
-                categoria: "Postura do instrutor",
-                itens: [
-                    "Informou os critérios para a certificação.",
-                    "Apresentou coerência entre o que apontava como correto e o que executava perante a turma.",
-                    "Estabeleceu contrato psicológico e o afixou em local visível durante o evento.",
-                    "Forneceu as informações necessárias para que os participantes apresentassem comportamento esperado.",
-                    "Estabeleceu um bom relacionamento com os participantes.",
-                    "Realizou as práticas de forma que todos os participantes conseguissem visualizá-las.",
-                    "Exerceu liderança perante a turma, estabelecendo um clima de organização.",
-                    "Deu oportunidade a todos os participantes de realizarem cada prática.",
-                    "Foi hábil e criativo na resolução de problema.",
-                    "Supervisionou a atividade prática realizada por cada participante.",
-                    "Foi pontual.",
-                    "Preocupou-se com sua aparência pessoal.",
-                    "Foi assíduo.",
-                    "Preocupou-se em utilizar traje adequado à situação de trabalho em que encontrava.",
-                    "Estimulou a participação ativa dos participantes.",
-                    "Orientou quanto aos recursos necessários a serem providenciados pelos participantes.",
-                    "Valorizou os participantes pelo desempenho correto nas práticas e/ou na resolução de problemas propostos.",
-                    "Organizou o espaço físico.",
-                    "Socializou as respostas das perguntas individuais."
-                ]
-            }
-        ];
+const escala = [
+    { valor: 4, label: "Sim, plenamente" },
+    { valor: 3, label: "Sim, parcialmente" },
+    { valor: 2, label: "Precisa melhorar" },
+    { valor: 1, label: "Não" },
+    { valor: 0, label: "Não observado" }
+];
 
-        let salvamentoPendente = false;
+const questionario = [
+    { categoria: "Objetivos", itens: [
+        "Apresentou, aos participantes, os objetivos instrucionais ou os resultados esperados.",
+        "Seguiu os objetivos planejados, numa sequência lógica."
+    ]},
+    { categoria: "Conteúdo programático", itens: [
+        "Seguiu a sequência planejada para desenvolvimento do conteúdo.",
+        "Usou exemplos baseados em situações vivenciadas pelos participantes.",
+        "Desenvolveu o conteúdo dentro do tempo previsto.",
+        "A parte teórica desenvolveu-se conjuntamente à prática.",
+        "Compatibilizou o conteúdo com interesses e necessidades dos participantes.",
+        "Ao iniciar novo conteúdo, apresentou a sua relação com outros já abordados.",
+        "Demonstrou segurança em seus posicionamentos.",
+        "Utilizou a linguagem escrita e oral corretamente.",
+        "Foi claro e objetivo na exposição dos assuntos.",
+        "Abordou questões relacionadas à saúde e segurança do trabalhador e/ou aspectos sobre meio ambiente, cidadania, qualidade e produtividade, sempre que pertinentes.",
+        "Decodificou os termos técnicos, quando utilizados.",
+        "Evidenciou a aplicabilidade prática do conteúdo ministrado."
+    ]},
+    { categoria: "Desenvolvimento das técnicas instrucionais", itens: [
+        "Dominou técnicas instrucionais aplicadas.",
+        "As técnicas utilizadas foram apropriadas ao conteúdo ministrado.",
+        "As técnicas utilizadas foram compatíveis com as características dos participantes."
+    ]},
+    { categoria: "Recursos instrucionais", itens: [
+        "Os recursos instrucionais necessários para o desenvolvimento do evento foram conferidos e testados.",
+        "Foram utilizados no momento oportuno.",
+        "Facilitaram a compreensão do assunto.",
+        "Foram disponibilizados na quantidade apropriada ao número de participantes.",
+        "Foram adequados às características dos participantes.",
+        "Apresentaram bom estado de conservação, sem defeitos comprometedores para a aprendizagem.",
+        "Estavam adequados ao local do evento."
+    ]},
+    { categoria: "Avaliação", itens: [
+        "Aplicou avaliações diagnósticas, formativas e somativas.",
+        "Os procedimentos de avaliação foram compatíveis com as características dos participantes.",
+        "Informou aos participantes sobre seus acertos e erros, apresentando-lhes as respostas ou os comportamentos corretos."
+    ]},
+    { categoria: "Plano instrucional", itens: [
+        "Portou o plano instrucional em formato físico.",
+        "Seguiu o plano instrucional elaborado.",
+        "Participou da elaboração do plano instrucional.",
+        "Necessitou ajustar/modificar o plano instrucional."
+    ]},
+    { categoria: "Postura do instrutor", itens: [
+        "Informou os critérios para a certificação.",
+        "Apresentou coerência entre o que apontava como correto e o que executava perante a turma.",
+        "Estabeleceu contrato psicológico e o afixou em local visível durante o evento.",
+        "Forneceu as informações necessárias para que os participantes apresentassem o comportamento esperado.",
+        "Estabeleceu um bom relacionamento com os participantes.",
+        "Realizou as práticas de forma que todos os participantes conseguissem visualizá-las.",
+        "Exerceu liderança perante a turma, estabelecendo um clima de organização.",
+        "Deu oportunidade a todos os participantes de realizarem cada prática.",
+        "Foi hábil e criativo na resolução de problemas.",
+        "Supervisionou a atividade prática realizada por cada participante.",
+        "Foi pontual.",
+        "Preocupou-se com sua aparência pessoal.",
+        "Foi assíduo.",
+        "Preocupou-se em utilizar traje adequado à situação de trabalho em que se encontrava.",
+        "Estimulou a participação ativa dos participantes.",
+        "Orientou quanto aos recursos necessários a serem providenciados pelos participantes.",
+        "Valorizou os participantes pelo desempenho correto nas práticas e/ou na resolução de problemas propostos.",
+        "Organizou o espaço físico.",
+        "Socializou as respostas das perguntas individuais."
+    ]}
+];
 
-        function atualizarStatus(mensagem, erro = false) {
-            const el = document.getElementById("status-salvamento");
-            el.textContent = mensagem;
-            el.className = "status-salvamento " +
-                (erro ? "text-red-600" : "text-gray-500");
-        }
+let salvamentoPendente = false;
 
-        function obterCamposTexto() {
-            return [
-                "rascunho",
-                "aspectos_positivos_original",
-                "aspectos_positivos",
-                "aspectos_melhoria_original",
-                "aspectos_melhoria"
-            ];
-        }
+function atualizarStatus(mensagem, erro = false) {
+    const el = document.getElementById("status-salvamento");
+    el.textContent = mensagem;
+    el.className = "status-salvamento " + (erro ? "text-red-600" : "text-gray-500");
+}
 
-        function obterDadosFormulario() {
-            const form = document.getElementById("supervisao-form");
-            const dadosAnteriores = lerDadosSalvosSilenciosamente();
-            const dados = {};
+function obterCamposTexto() {
+    return ["rascunho", "aspectos_positivos_original", "aspectos_positivos",
+            "aspectos_melhoria_original", "aspectos_melhoria"];
+}
 
-            questionario.forEach((bloco, bIndex) => {
-                bloco.itens.forEach((pergunta, iIndex) => {
-                    const nome = `q_${bIndex}_${iIndex}`;
-                    const selecionado = form.querySelector(
-                        `input[name="${nome}"]:checked`
-                    );
+function lerDadosSalvosSilenciosamente() {
+    try {
+        const bruto = localStorage.getItem(CHAVE_STORAGE);
+        return bruto ? JSON.parse(bruto) : null;
+    } catch (erro) {
+        console.error("Erro ao ler dados salvos:", erro);
+        return null;
+    }
+}
 
-                    if (selecionado) {
-                        dados[nome] = Number(selecionado.value);
-                    }
-                });
-            });
+function obterDadosFormulario() {
+    const respostas = {};
+    questionario.forEach((bloco, b) => bloco.itens.forEach((_, i) => {
+        const nome = `q_${b}_${i}`;
+        const selecionado = document.querySelector(`input[name="${nome}"]:checked`);
+        if (selecionado) respostas[nome] = Number(selecionado.value);
+    }));
 
-            obterCamposTexto().forEach(id => {
-                dados[id] = document.getElementById(id).value;
-            });
+    obterCamposTexto().forEach(id => {
+        respostas[id] = document.getElementById(id).value;
+    });
 
-            return {
-                versao: VERSAO_DADOS,
-                atualizado_em: new Date().toISOString(),
-                respostas: dados,
-                // Mantém as respostas também no nível superior para
-                // facilitar a compatibilidade com a automação existente.
-                ...dados,
-                metadados: dadosAnteriores?.metadados || {}
-            };
-        }
+    const anteriores = lerDadosSalvosSilenciosamente();
+    return {
+        versao: VERSAO_DADOS,
+        atualizado_em: new Date().toISOString(),
+        respostas,
+        ...respostas,
+        metadados: anteriores?.metadados || {}
+    };
+}
 
-        function lerDadosSalvosSilenciosamente() {
-            try {
-                const bruto = localStorage.getItem(CHAVE_STORAGE);
-                return bruto ? JSON.parse(bruto) : null;
-            } catch (erro) {
-                console.error("Não foi possível ler os dados salvos:", erro);
-                return null;
-            }
-        }
+function salvarDados() {
+    try {
+        localStorage.setItem(CHAVE_STORAGE, JSON.stringify(obterDadosFormulario()));
+        salvamentoPendente = false;
+        atualizarStatus("Salvo neste dispositivo às " + new Date().toLocaleTimeString("pt-BR"));
+        return true;
+    } catch (erro) {
+        salvamentoPendente = true;
+        console.error("Falha ao salvar:", erro);
+        atualizarStatus("Não foi possível salvar. Exporte seus dados e verifique o armazenamento.", true);
+        return false;
+    }
+}
 
-        function salvarDados() {
-            try {
-                const dados = obterDadosFormulario();
-                localStorage.setItem(CHAVE_STORAGE, JSON.stringify(dados));
-                salvamentoPendente = false;
+function salvarAgora() {
+    alert(salvarDados() ? "Dados salvos neste dispositivo." : "Não foi possível salvar os dados. Verifique o armazenamento do navegador.");
+}
 
-                atualizarStatus(
-                    "Salvo neste dispositivo às " +
-                    new Date().toLocaleTimeString("pt-BR")
-                );
-
-                return true;
-            } catch (erro) {
-                salvamentoPendente = true;
-                console.error("Falha ao salvar:", erro);
-
-                atualizarStatus(
-                    "Não foi possível salvar. Exporte seus dados ou verifique o armazenamento.",
-                    true
-                );
-
-                return false;
-            }
-        }
-
-        function salvarAgora() {
-            if (salvarDados()) {
-                alert("Dados salvos neste dispositivo.");
-            } else {
-                alert("Não foi possível salvar os dados. Verifique o espaço disponível no navegador.");
-            }
-        }
-
-        function carregarDados() {
-            let dados;
-
-            try {
-                const bruto = localStorage.getItem(CHAVE_STORAGE);
-                if (!bruto) {
-                    atualizarStatus("Nenhuma avaliação anterior encontrada.");
-                    return;
-                }
-
-                dados = JSON.parse(bruto);
-
-                if (!dados || typeof dados !== "object") {
-                    throw new Error("Formato de dados inválido.");
-                }
-            } catch (erro) {
-                console.error("Erro ao recuperar os dados:", erro);
-                atualizarStatus(
-                    "Os dados salvos não puderam ser lidos. Evite apagar o armazenamento sem fazer uma cópia.",
-                    true
-                );
-                return;
-            }
-
-            const respostas = dados.respostas || dados;
-
-            questionario.forEach((bloco, bIndex) => {
-                bloco.itens.forEach((pergunta, iIndex) => {
-                    const nome = `q_${bIndex}_${iIndex}`;
-                    const valor = respostas[nome];
-
-                    if (valor === undefined || valor === null) return;
-
-                    const radio = document.querySelector(
-                        `input[name="${nome}"][value="${valor}"]`
-                    );
-
-                    if (radio) radio.checked = true;
-                });
-            });
-
-            const campos = obterCamposTexto();
-
-            campos.forEach(id => {
-                const campo = document.getElementById(id);
-                if (!campo) return;
-
-                if (Object.prototype.hasOwnProperty.call(dados, id)) {
-                    campo.value = dados[id] || "";
-                }
-            });
-
-            /*
-             * Migração dos dados da versão anterior:
-             * os campos antigos passam a ser considerados textos originais.
-             * A cópia também é colocada no campo final para não perder conteúdo.
-             */
-            if (
-                !Object.prototype.hasOwnProperty.call(
-                    dados, "aspectos_positivos_original"
-                ) &&
-                dados.aspectos_positivos
-            ) {
-                document.getElementById(
-                    "aspectos_positivos_original"
-                ).value = dados.aspectos_positivos;
-            }
-
-            if (
-                !Object.prototype.hasOwnProperty.call(
-                    dados, "aspectos_melhoria_original"
-                ) &&
-                dados.aspectos_melhoria
-            ) {
-                document.getElementById(
-                    "aspectos_melhoria_original"
-                ).value = dados.aspectos_melhoria;
-            }
-
-            atualizarStatus("Dados recuperados do armazenamento local.");
-        }
-
-        function renderizarQuestionario() {
-            const container = document.getElementById("blocos-avaliacao");
-            let html = "";
-
-            questionario.forEach((bloco, bIndex) => {
-                html += `
-                    <section class="mb-8 pdf-section">
-                        <h2 class="pdf-section-title text-lg md:text-xl font-bold
-                                   bg-green-100 text-green-800 p-3 rounded mb-4">
-                            ${bloco.categoria}
-                        </h2>
-                `;
-
-                bloco.itens.forEach((item, iIndex) => {
-                    const fieldId = `q_${bIndex}_${iIndex}`;
-
-                    html += `
-                        <div class="pdf-question mb-4 pb-4 border-b border-gray-200">
-                            <p class="text-gray-700 mb-3 font-medium
-                                      text-sm md:text-base leading-snug">
-                                ${item}
-                            </p>
-                            <div class="flex flex-wrap gap-2 md:gap-4">
-                    `;
-
-                    escala.forEach(esc => {
-                        html += `
-                            <label class="flex items-center space-x-2 bg-gray-50
-                                          px-3 py-2 rounded-lg border cursor-pointer">
-                                <input
-                                    type="radio"
-                                    name="${fieldId}"
-                                    value="${esc.valor}"
-                                    class="form-radio text-green-600 h-4 w-4"
-                                >
-                                <span class="text-xs md:text-sm text-gray-700 font-semibold">
-                                    ${esc.valor} - ${esc.label}
-                                </span>
-                            </label>
-                        `;
-                    });
-
-                    html += `
-                            </div>
-                        </div>
-                    `;
-                });
-
-                html += "</section>";
-            });
-
-            container.innerHTML = html;
-
-            container.querySelectorAll('input[type="radio"]').forEach(radio => {
-                radio.addEventListener("change", salvarDados);
-            });
-        }
-
-        /*
-         * Integração com IA:
-         * Esta função ainda não envia dados para um modelo.
-         * Quando o backend seguro for configurado, ele deverá devolver
-         * os dois textos revisados sem sobrescrever os originais.
-         */
-
-async function refinarComIA() {
-    const URL_WORKER =
-        "https://quiet-cloud-dccbsupervisao-senar-ia.jcsonodajr.workers.dev/";
-
-    const campoRascunho = document.getElementById("rascunho");
-    const campoPositivoOriginal =
-        document.getElementById("aspectos_positivos_original");
-    const campoMelhoriaOriginal =
-        document.getElementById("aspectos_melhoria_original");
-    const campoPositivoFinal =
-        document.getElementById("aspectos_positivos");
-    const campoMelhoriaFinal =
-        document.getElementById("aspectos_melhoria");
-    const botao = document.getElementById("btn-ia");
-
-    const rascunho = campoRascunho.value.trim();
-
-    // Prioriza os textos originais e, se estiverem vazios,
-    // utiliza os textos finais já existentes como referência.
-    const positivos =
-        campoPositivoOriginal.value.trim() ||
-        campoPositivoFinal.value.trim();
-
-    const melhorias =
-        campoMelhoriaOriginal.value.trim() ||
-        campoMelhoriaFinal.value.trim();
-
-    if (!rascunho && !positivos && !melhorias) {
-        alert(
-            "Preencha o rascunho ou pelo menos um dos textos " +
-            "originais antes de solicitar o refinamento."
-        );
+function carregarDados() {
+    const dados = lerDadosSalvosSilenciosamente();
+    if (!dados) {
+        atualizarStatus("Nenhuma avaliação anterior encontrada.");
         return;
     }
 
+    const respostas = dados.respostas || dados;
+    questionario.forEach((bloco, b) => bloco.itens.forEach((_, i) => {
+        const nome = `q_${b}_${i}`;
+        if (respostas[nome] === undefined) return;
+        const radio = document.querySelector(`input[name="${nome}"][value="${respostas[nome]}"]`);
+        if (radio) radio.checked = true;
+        atualizarSignificado(nome);
+    }));
+
+    obterCamposTexto().forEach(id => {
+        const campo = document.getElementById(id);
+        if (Object.prototype.hasOwnProperty.call(dados, id)) campo.value = dados[id] || "";
+    });
+
+    // Compatibilidade com registros antigos que não tinham campos originais separados.
+    if (!Object.prototype.hasOwnProperty.call(dados, "aspectos_positivos_original") && dados.aspectos_positivos) {
+        document.getElementById("aspectos_positivos_original").value = dados.aspectos_positivos;
+    }
+    if (!Object.prototype.hasOwnProperty.call(dados, "aspectos_melhoria_original") && dados.aspectos_melhoria) {
+        document.getElementById("aspectos_melhoria_original").value = dados.aspectos_melhoria;
+    }
+
+    ajustarTextareas();
+    atualizarStatus("Dados recuperados do armazenamento local.");
+}
+
+function atualizarSignificado(nome) {
+    const escolhido = document.querySelector(`input[name="${nome}"]:checked`);
+    const descricao = document.getElementById(`desc_${nome}`);
+    const impressao = document.getElementById(`print_${nome}`);
+    if (!descricao) return;
+
+    const item = escala.find(e => e.valor === Number(escolhido?.value));
+    descricao.textContent = item ? item.label : "Selecione uma nota";
+    descricao.className = "rating-description text-sm text-gray-600";
+    if (item && item.valor <= 2) descricao.classList.add("font-semibold", "text-orange-700");
+    if (impressao) impressao.textContent = item ? `${item.valor} — ${item.label}` : "Não avaliado";
+}
+
+function renderizarQuestionario() {
+    const container = document.getElementById("blocos-avaliacao");
+    let html = "";
+
+    questionario.forEach((bloco, b) => {
+        html += `<section class="pdf-section mb-8">
+            <h2 class="pdf-section-title text-lg md:text-xl font-bold bg-green-100 text-green-800 p-3 rounded mb-4">${bloco.categoria}</h2>`;
+
+        bloco.itens.forEach((item, i) => {
+            const nome = `q_${b}_${i}`;
+            html += `<div class="pdf-question mb-4 pb-4 border-b border-gray-200">
+                <p class="text-gray-700 mb-3 font-medium text-sm md:text-base leading-snug">${item}</p>
+                <div class="rating-row flex flex-wrap items-center gap-3">
+                    <select class="rating-select border rounded-lg bg-white p-2 text-base" name="${nome}" aria-label="Nota da pergunta: ${item}" onchange="atualizarSignificado('${nome}'); salvarDados()">
+                        <option value="">Nota</option>
+                        ${escala.map(e => `<option value="${e.valor}">${e.valor}</option>`).join("")}
+                    </select>
+                    <span id="desc_${nome}" class="rating-description text-sm text-gray-600">Selecione uma nota</span>
+                    <span id="print_${nome}" class="rating-text hidden"></span>
+                </div>
+            </div>`;
+        });
+        html += "</section>";
+    });
+
+    container.innerHTML = html;
+}
+
+function ajustarTextareas() {
+    obterCamposTexto().forEach(id => {
+        const campo = document.getElementById(id);
+        if (!campo) return;
+        campo.style.height = "auto";
+        campo.style.height = Math.max(campo.scrollHeight, 100) + "px";
+    });
+}
+
+async function copiarTexto(id) {
+    const campo = document.getElementById(id);
+    const texto = campo.value.trim();
+    if (!texto) {
+        alert("Não há texto para copiar neste campo.");
+        return;
+    }
+
+    try {
+        await navigator.clipboard.writeText(texto);
+        atualizarStatus("Texto copiado. Você já pode colá-lo no relatório oficial.");
+        alert("Texto copiado para a área de transferência.");
+    } catch (erro) {
+        campo.focus();
+        campo.select();
+        const sucesso = document.execCommand("copy");
+        alert(sucesso ? "Texto copiado para a área de transferência." : "Não foi possível copiar automaticamente. Selecione o texto e use Ctrl+C.");
+    }
+}
+
+async function refinarComIA() {
+    const URL_WORKER = "https://quiet-cloud-dccbsupervisao-senar-ia.jcsonodajr.workers.dev/";
+    const campoRascunho = document.getElementById("rascunho");
+    const campoPositivoOriginal = document.getElementById("aspectos_positivos_original");
+    const campoMelhoriaOriginal = document.getElementById("aspectos_melhoria_original");
+    const campoPositivoFinal = document.getElementById("aspectos_positivos");
+    const campoMelhoriaFinal = document.getElementById("aspectos_melhoria");
+    const botao = document.getElementById("btn-ia");
+
+    const rascunho = campoRascunho.value.trim();
+    const positivos = campoPositivoOriginal.value.trim() || campoPositivoFinal.value.trim();
+    const melhorias = campoMelhoriaOriginal.value.trim() || campoMelhoriaFinal.value.trim();
+
+    if (!rascunho && !positivos && !melhorias) {
+        alert("Preencha o rascunho ou pelo menos um dos textos antes de solicitar o refinamento.");
+        return;
+    }
     if (botao.disabled) return;
 
-    const textoBotaoOriginal = botao.textContent;
-
+    const rotuloOriginal = botao.textContent;
     botao.disabled = true;
     botao.textContent = "Refinando textos...";
-    botao.classList.add("opacity-60", "cursor-not-allowed");
-
     atualizarStatus("Enviando textos para refinamento com IA...");
 
     try {
         const resposta = await fetch(URL_WORKER, {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 aspectos_positivos: positivos,
                 aspectos_melhoria: melhorias,
-                rascunho: rascunho
+                rascunho
             })
         });
 
         const resultado = await resposta.json().catch(() => null);
-
         if (!resposta.ok) {
-            const detalhe = resultado?.detalhe ||
-                resultado?.erro ||
-                `Erro HTTP ${resposta.status}`;
-
-            throw new Error(detalhe);
+            throw new Error(resultado?.detalhe || resultado?.erro || `Erro HTTP ${resposta.status}`);
         }
-
-        if (
-            !resultado ||
-            resultado.sucesso !== true ||
+        if (!resultado || resultado.sucesso !== true ||
             typeof resultado.aspectos_positivos !== "string" ||
-            typeof resultado.aspectos_melhoria !== "string"
-        ) {
-            throw new Error(
-                resultado?.erro ||
-                "O serviço retornou uma resposta inesperada."
-            );
+            typeof resultado.aspectos_melhoria !== "string") {
+            throw new Error(resultado?.erro || "Resposta inesperada do serviço.");
         }
 
-        // Atualiza somente os campos revisados.
-        // Os textos originais e o rascunho são preservados.
         campoPositivoFinal.value = resultado.aspectos_positivos;
         campoMelhoriaFinal.value = resultado.aspectos_melhoria;
-
-        // Dispara eventos para manter compatibilidade com outros scripts.
-        campoPositivoFinal.dispatchEvent(
-            new Event("input", { bubbles: true })
-        );
-        campoMelhoriaFinal.dispatchEvent(
-            new Event("input", { bubbles: true })
-        );
-
+        ajustarTextareas();
         salvarDados();
-
-        atualizarStatus(
-            "Textos refinados com IA usando " +
-            (resultado.modelo_utilizado || "Gemini") +
-            ". Revise o conteúdo antes de gerar o relatório."
-        );
-
-        alert(
-            "Refinamento concluído!\n\n" +
-            "Os textos revisados foram preenchidos nos campos de versão final. " +
-            "Os textos originais foram preservados.\n\n" +
-            "Confira o resultado antes de gerar o PDF."
-        );
-
+        atualizarStatus("Textos revisados com IA. Confira o resultado antes de usar.");
+        alert("Refinamento concluído. Os textos originais foram preservados.");
     } catch (erro) {
-        console.error("Erro ao refinar textos com IA:", erro);
-
-        atualizarStatus(
-            "Não foi possível refinar os textos com IA.",
-            true
-        );
-
-        alert(
-            "Não foi possível concluir o refinamento.\n\n" +
-            "Detalhe: " + (erro.message || "Erro de comunicação") +
-            "\n\nSe o problema persistir, verifique a conexão com o serviço."
-        );
-
+        console.error("Erro ao refinar com IA:", erro);
+        atualizarStatus("Não foi possível refinar os textos com IA.", true);
+        alert("Falha no refinamento.\n\nDetalhe: " + (erro.message || "Erro de comunicação"));
     } finally {
         botao.disabled = false;
-        botao.textContent = textoBotaoOriginal;
-        botao.classList.remove("opacity-60", "cursor-not-allowed");
+        botao.textContent = rotuloOriginal;
     }
 }
 
-        async function gerarPDF() {
-            if (salvamentoPendente && !salvarDados()) {
-                alert("Atenção: não foi possível salvar os dados. Confira o armazenamento antes de gerar o PDF.");
-                return;
-            }
+function gerarPDF() {
+    if (!salvarDados()) {
+        if (!confirm("Não foi possível salvar automaticamente. Deseja continuar e abrir a impressão?")) return;
+    }
 
-            if (typeof html2pdf === "undefined") {
-                alert("A biblioteca de PDF não foi carregada. Verifique sua conexão com a internet e tente novamente.");
-                return;
-            }
+    // Espelha os valores em elementos de texto para a impressão.
+    document.getElementById("print-aspectos_positivos").textContent =
+        document.getElementById("aspectos_positivos").value;
+    document.getElementById("print-aspectos_melhoria").textContent =
+        document.getElementById("aspectos_melhoria").value;
 
-            const origem = document.getElementById("relatorio-pdf");
-            const clone = origem.cloneNode(true);
+    document.getElementById("data-relatorio").textContent =
+        "Data de emissão: " + new Date().toLocaleDateString("pt-BR");
 
-            // Remove quaisquer elementos de interface que possam estar no relatório.
-            clone.querySelectorAll(".no-print, button").forEach(el => el.remove());
+    questionario.forEach((bloco, b) => bloco.itens.forEach((_, i) => {
+        atualizarSignificado(`q_${b}_${i}`);
+    }));
 
-            // Garante que o PDF use os valores atuais dos campos editáveis.
-            const origInputs = origem.querySelectorAll("input");
-            const cloneInputs = clone.querySelectorAll("input");
+    window.print();
+}
 
-            origInputs.forEach((input, index) => {
-                const destino = cloneInputs[index];
-                if (!destino) return;
+function exportarJSON() {
+    const dados = obterDadosFormulario();
+    try {
+        localStorage.setItem(CHAVE_STORAGE, JSON.stringify(dados));
+        salvamentoPendente = false;
+    } catch (erro) {
+        console.error("Falha ao salvar antes da exportação:", erro);
+    }
 
-                if (input.type === "radio") {
-                    if (input.checked) {
-                        destino.setAttribute("checked", "checked");
-                    } else {
-                        destino.removeAttribute("checked");
-                    }
-                }
-            });
+    const blob = new Blob([JSON.stringify(dados, null, 2)], {
+        type: "application/json;charset=utf-8"
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "payload_automacao.json";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 
-            const origTextareas = origem.querySelectorAll("textarea");
-            const cloneTextareas = clone.querySelectorAll("textarea");
+function iniciarAplicacao() {
+    renderizarQuestionario();
+    carregarDados();
+    document.getElementById("data-relatorio").textContent =
+        "Data de emissão: " + new Date().toLocaleDateString("pt-BR");
 
-            origTextareas.forEach((textarea, index) => {
-                if (cloneTextareas[index]) {
-                    cloneTextareas[index].value = textarea.value;
-                    cloneTextareas[index].textContent = textarea.value;
-                }
-            });
+    obterCamposTexto().forEach(id => {
+        const campo = document.getElementById(id);
+        campo.addEventListener("input", () => {
+            ajustarTextareas();
+            salvarDados();
+        });
+    });
 
-            const data = new Date().toISOString().slice(0, 10);
-            const wrapper = document.createElement("div");
+    window.addEventListener("pagehide", salvarDados);
+}
 
-            wrapper.style.background = "#ffffff";
-            wrapper.style.color = "#1f2937";
-            wrapper.style.width = "100%";
-            wrapper.appendChild(clone);
-
-            const opcoes = {
-                margin: [10, 10, 12, 10],
-                filename: `Relatorio_Supervisao_SENAR_${data}.pdf`,
-                image: {
-                    type: "jpeg",
-                    quality: 0.96
-                },
-                html2canvas: {
-                    scale: 1.5,
-                    useCORS: true,
-                    logging: false,
-                    backgroundColor: "#ffffff",
-                    scrollX: 0,
-                    scrollY: 0
-                },
-                jsPDF: {
-                    unit: "mm",
-                    format: "a4",
-                    orientation: "portrait",
-                    compress: true
-                },
-                pagebreak: {
-                    mode: ["css", "legacy"],
-                    avoid: [
-                        ".pdf-question",
-                        ".pdf-section-title",
-                        "textarea"
-                    ]
-                }
-            };
-
-            try {
-                atualizarStatus("Gerando PDF...");
-
-                await html2pdf()
-                    .set(opcoes)
-                    .from(wrapper)
-                    .save();
-
-                atualizarStatus("PDF gerado.");
-            } catch (erro) {
-                console.error("Erro ao gerar PDF:", erro);
-                alert("Não foi possível gerar o PDF. Consulte o console do navegador para mais detalhes.");
-                atualizarStatus("Falha ao gerar PDF.", true);
-            }
-        }
-
-        function exportarJSON() {
-            // Tenta salvar e exporta os dados atuais mesmo se o armazenamento falhar.
-            const dados = obterDadosFormulario();
-
-            try {
-                localStorage.setItem(CHAVE_STORAGE, JSON.stringify(dados));
-                salvamentoPendente = false;
-            } catch (erro) {
-                console.error("Falha ao salvar antes da exportação:", erro);
-                alert("O armazenamento local falhou. Será feita uma tentativa de exportar os dados atuais diretamente.");
-            }
-
-            const blob = new Blob(
-                [JSON.stringify(dados, null, 2)],
-                { type: "application/json;charset=utf-8" }
-            );
-
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-
-            link.href = url;
-            link.download = "payload_automacao.json";
-
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-
-            setTimeout(() => URL.revokeObjectURL(url), 1000);
-        }
-
-        function atualizarDataRelatorio() {
-            const data = new Date();
-
-            document.getElementById("data-relatorio").textContent =
-                "Data de emissão: " +
-                data.toLocaleDateString("pt-BR");
-        }
-
-        function iniciarAplicacao() {
-            renderizarQuestionario();
-            carregarDados();
-            atualizarDataRelatorio();
-
-            // Os campos de texto são salvos automaticamente ao serem editados.
-            obterCamposTexto().forEach(id => {
-                document.getElementById(id).addEventListener("input", salvarDados);
-            });
-
-            // Salva antes de sair da página, quando o navegador permitir.
-            window.addEventListener("pagehide", () => {
-                salvarDados();
-            });
-        }
-
-        window.addEventListener("DOMContentLoaded", iniciarAplicacao);
-    </script>
-
+window.addEventListener("DOMContentLoaded", iniciarAplicacao);
+</script>
 </body>
 </html>
