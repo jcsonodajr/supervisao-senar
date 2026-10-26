@@ -601,26 +601,135 @@
          * Quando o backend seguro for configurado, ele deverá devolver
          * os dois textos revisados sem sobrescrever os originais.
          */
-        async function refinarComIA() {
-            const rascunho = document.getElementById("rascunho").value.trim();
-            const positivoOriginal =
-                document.getElementById("aspectos_positivos_original").value.trim();
-            const melhoriaOriginal =
-                document.getElementById("aspectos_melhoria_original").value.trim();
 
-            if (!rascunho && !positivoOriginal && !melhoriaOriginal) {
-                alert("Preencha o rascunho ou os textos originais antes de solicitar a revisão.");
-                return;
-            }
+async function refinarComIA() {
+    const URL_WORKER =
+        "https://quiet-cloud-dccbsupervisao-senar-ia.jcsonodajr.workers.dev/";
 
-            salvarDados();
+    const campoRascunho = document.getElementById("rascunho");
+    const campoPositivoOriginal =
+        document.getElementById("aspectos_positivos_original");
+    const campoMelhoriaOriginal =
+        document.getElementById("aspectos_melhoria_original");
+    const campoPositivoFinal =
+        document.getElementById("aspectos_positivos");
+    const campoMelhoriaFinal =
+        document.getElementById("aspectos_melhoria");
+    const botao = document.getElementById("btn-ia");
 
-            alert(
-                "A integração com a IA ainda precisa ser configurada.\n\n" +
-                "Seus textos originais foram preservados. " +
-                "Nenhum texto foi enviado para um serviço externo ou alterado."
+    const rascunho = campoRascunho.value.trim();
+
+    // Prioriza os textos originais e, se estiverem vazios,
+    // utiliza os textos finais já existentes como referência.
+    const positivos =
+        campoPositivoOriginal.value.trim() ||
+        campoPositivoFinal.value.trim();
+
+    const melhorias =
+        campoMelhoriaOriginal.value.trim() ||
+        campoMelhoriaFinal.value.trim();
+
+    if (!rascunho && !positivos && !melhorias) {
+        alert(
+            "Preencha o rascunho ou pelo menos um dos textos " +
+            "originais antes de solicitar o refinamento."
+        );
+        return;
+    }
+
+    if (botao.disabled) return;
+
+    const textoBotaoOriginal = botao.textContent;
+
+    botao.disabled = true;
+    botao.textContent = "Refinando textos...";
+    botao.classList.add("opacity-60", "cursor-not-allowed");
+
+    atualizarStatus("Enviando textos para refinamento com IA...");
+
+    try {
+        const resposta = await fetch(URL_WORKER, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                aspectos_positivos: positivos,
+                aspectos_melhoria: melhorias,
+                rascunho: rascunho
+            })
+        });
+
+        const resultado = await resposta.json().catch(() => null);
+
+        if (!resposta.ok) {
+            const detalhe = resultado?.detalhe ||
+                resultado?.erro ||
+                `Erro HTTP ${resposta.status}`;
+
+            throw new Error(detalhe);
+        }
+
+        if (
+            !resultado ||
+            resultado.sucesso !== true ||
+            typeof resultado.aspectos_positivos !== "string" ||
+            typeof resultado.aspectos_melhoria !== "string"
+        ) {
+            throw new Error(
+                resultado?.erro ||
+                "O serviço retornou uma resposta inesperada."
             );
         }
+
+        // Atualiza somente os campos revisados.
+        // Os textos originais e o rascunho são preservados.
+        campoPositivoFinal.value = resultado.aspectos_positivos;
+        campoMelhoriaFinal.value = resultado.aspectos_melhoria;
+
+        // Dispara eventos para manter compatibilidade com outros scripts.
+        campoPositivoFinal.dispatchEvent(
+            new Event("input", { bubbles: true })
+        );
+        campoMelhoriaFinal.dispatchEvent(
+            new Event("input", { bubbles: true })
+        );
+
+        salvarDados();
+
+        atualizarStatus(
+            "Textos refinados com IA usando " +
+            (resultado.modelo_utilizado || "Gemini") +
+            ". Revise o conteúdo antes de gerar o relatório."
+        );
+
+        alert(
+            "Refinamento concluído!\n\n" +
+            "Os textos revisados foram preenchidos nos campos de versão final. " +
+            "Os textos originais foram preservados.\n\n" +
+            "Confira o resultado antes de gerar o PDF."
+        );
+
+    } catch (erro) {
+        console.error("Erro ao refinar textos com IA:", erro);
+
+        atualizarStatus(
+            "Não foi possível refinar os textos com IA.",
+            true
+        );
+
+        alert(
+            "Não foi possível concluir o refinamento.\n\n" +
+            "Detalhe: " + (erro.message || "Erro de comunicação") +
+            "\n\nSe o problema persistir, verifique a conexão com o serviço."
+        );
+
+    } finally {
+        botao.disabled = false;
+        botao.textContent = textoBotaoOriginal;
+        botao.classList.remove("opacity-60", "cursor-not-allowed");
+    }
+}
 
         async function gerarPDF() {
             if (salvamentoPendente && !salvarDados()) {
