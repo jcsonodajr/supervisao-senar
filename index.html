@@ -10,6 +10,7 @@
     <style>
         @media print { .no-print { display: none !important; } }
         body { -webkit-tap-highlight-color: transparent; }
+        .status-salvamento { min-height: 1.25rem; }
     </style>
     <script>
         if ('serviceWorker' in navigator) {
@@ -47,7 +48,9 @@
             </div>
         </form>
 
-        <div class="mt-8 flex flex-wrap gap-4 no-print border-t pt-6">
+        <p id="status-salvamento" class="status-salvamento mt-4 text-sm text-gray-500 no-print" role="status" aria-live="polite">Carregando avaliação...</p>
+
+        <div class="mt-4 flex flex-wrap gap-4 no-print border-t pt-6">
             <button onclick="refinarComIA()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded shadow flex-1 md:flex-none">Refinar Textos com IA</button>
             <button onclick="gerarPDF()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded shadow flex-1 md:flex-none">Baixar PDF</button>
             <button onclick="exportarJSON()" class="bg-gray-800 hover:bg-gray-900 text-white font-bold py-3 px-6 rounded shadow flex-1 md:flex-none">Exportar para Python/Selenium</button>
@@ -179,26 +182,71 @@
             container.innerHTML = html;
         }
 
+        function atualizarStatusSalvamento(mensagem, sucesso = true) {
+            const status = document.getElementById('status-salvamento');
+            if (!status) return;
+
+            status.textContent = mensagem;
+            status.className = `status-salvamento mt-4 text-sm no-print ${sucesso ? 'text-green-700' : 'text-red-700'}`;
+        }
+
         function salvarDados() {
-            const formData = new FormData(document.getElementById('supervisao-form'));
-            const data = Object.fromEntries(formData.entries());
-            data.rascunho = document.getElementById('rascunho').value;
-            data.aspectos_positivos = document.getElementById('aspectos_positivos').value;
-            data.aspectos_melhoria = document.getElementById('aspectos_melhoria').value;
-            localStorage.setItem('supervisaoSENAR', JSON.stringify(data));
+            try {
+                const form = document.getElementById('supervisao-form');
+                const formData = new FormData(form);
+                const data = Object.fromEntries(formData.entries());
+
+                // Campos que não possuem name dentro do formulário são adicionados manualmente.
+                data.rascunho = document.getElementById('rascunho').value;
+                data.aspectos_positivos = document.getElementById('aspectos_positivos').value;
+                data.aspectos_melhoria = document.getElementById('aspectos_melhoria').value;
+
+                const json = JSON.stringify(data);
+                localStorage.setItem('supervisaoSENAR', json);
+                atualizarStatusSalvamento(`Salvo neste dispositivo às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}.`);
+                return true;
+            } catch (erro) {
+                console.error('Erro ao salvar a avaliação:', erro);
+                atualizarStatusSalvamento('Não foi possível salvar os dados neste dispositivo. Exporte uma cópia ou libere espaço no navegador.', false);
+                return false;
+            }
         }
 
         function carregarDados() {
-            const dadosSalvos = JSON.parse(localStorage.getItem('supervisaoSENAR'));
-            if (!dadosSalvos) return;
+            let dadosSalvos;
+
+            try {
+                const jsonSalvo = localStorage.getItem('supervisaoSENAR');
+                if (!jsonSalvo) {
+                    atualizarStatusSalvamento('Nenhuma avaliação anterior encontrada. As respostas serão salvas neste dispositivo.');
+                    return;
+                }
+
+                dadosSalvos = JSON.parse(jsonSalvo);
+                if (!dadosSalvos || typeof dadosSalvos !== 'object' || Array.isArray(dadosSalvos)) {
+                    throw new Error('O conteúdo salvo não é um objeto JSON válido.');
+                }
+            } catch (erro) {
+                console.error('Erro ao recuperar a avaliação:', erro);
+                atualizarStatusSalvamento('Os dados salvos não puderam ser lidos. Não foram apagados; verifique o armazenamento do navegador.', false);
+                alert('Não foi possível ler a avaliação salva. Os dados existentes foram preservados. Se você tiver um arquivo JSON exportado anteriormente, mantenha-o como cópia de segurança.');
+                return;
+            }
 
             Object.entries(dadosSalvos).forEach(([key, value]) => {
-                const el = document.querySelector(`[name="${key}"][value="${value}"]`);
-                if (el) el.checked = true;
+                // As chaves são geradas pelo próprio formulário; evita montar seletores com valores arbitrários.
+                if (/^q_\d+_\d+$/.test(key)) {
+                    const opcoes = document.querySelectorAll(`input[type="radio"][name="${key}"]`);
+                    opcoes.forEach(opcao => {
+                        opcao.checked = String(opcao.value) === String(value);
+                    });
+                }
             });
+
             document.getElementById('rascunho').value = dadosSalvos.rascunho || '';
             document.getElementById('aspectos_positivos').value = dadosSalvos.aspectos_positivos || '';
             document.getElementById('aspectos_melhoria').value = dadosSalvos.aspectos_melhoria || '';
+            atualizarStatusSalvamento('Avaliação anterior recuperada deste dispositivo.');
         }
 
         ['rascunho', 'aspectos_positivos', 'aspectos_melhoria'].forEach(id => {
@@ -214,36 +262,75 @@
             alert("Enviando notas e rascunho para a Gemini API...\n\n(A integração da chave de API será configurada nesta etapa para redigir o texto automaticamente baseado nos manuais de FPR e Mobilização).");
         }
 
-        function gerarPDF() {
+        async function gerarPDF() {
+            if (typeof html2pdf === 'undefined') {
+                alert('A biblioteca de geração de PDF não está disponível. Verifique sua conexão com a internet e tente novamente.');
+                return;
+            }
+
             const elemento = document.getElementById('relatorio-pdf');
             const opt = {
-                margin:       10,
-                filename:     'Relatorio_Supervisao_SENAR.pdf',
-                image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2, useCORS: true },
-                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                margin: 10,
+                filename: 'Relatorio_Supervisao_SENAR.pdf',
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: {
+                    scale: 2,
+                    useCORS: true,
+                    onclone: (documentoClonado) => {
+                        documentoClonado.querySelectorAll('.no-print').forEach(el => {
+                            el.style.display = 'none';
+                        });
+                    }
+                },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
-            html2pdf().set(opt).from(elemento).save();
+
+            try {
+                await html2pdf().set(opt).from(elemento).save();
+            } catch (erro) {
+                console.error('Erro ao gerar PDF:', erro);
+                alert('Não foi possível gerar o PDF. Tente novamente; se o problema continuar, verifique se a biblioteca está carregada.');
+            }
         }
 
         function exportarJSON() {
-            const dados = localStorage.getItem('supervisaoSENAR');
-            if(!dados) {
-                alert("Nenhum dado para exportar.");
+            // Tenta salvar o estado atual antes de exportar.
+            const salvou = salvarDados();
+            if (!salvou) {
+                alert('A exportação foi cancelada porque não foi possível salvar os dados atuais no navegador.');
                 return;
             }
-            const blob = new Blob([dados], { type: "application/json" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'payload_automacao.json';
-            a.click();
+
+            const dados = localStorage.getItem('supervisaoSENAR');
+            if (!dados) {
+                alert('Nenhum dado para exportar.');
+                return;
+            }
+
+            let url;
+            try {
+                const blob = new Blob([dados], { type: 'application/json;charset=utf-8' });
+                url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'payload_automacao.json';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+
+                // Libera o endereço temporário depois que o navegador iniciar o download.
+                window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+            } catch (erro) {
+                console.error('Erro ao exportar JSON:', erro);
+                if (url) URL.revokeObjectURL(url);
+                alert('Não foi possível exportar o arquivo JSON. Tente novamente.');
+            }
         }
 
-        window.onload = () => {
+        window.addEventListener('DOMContentLoaded', () => {
             renderizarQuestionario();
             carregarDados();
-        };
+        });
     </script>
 </body>
 </html>
