@@ -1,15 +1,22 @@
+
 {
+  "id": "./",
   "name": "Supervisão SENAR",
   "short_name": "Supervisão",
+  "description": "Aplicativo de supervisão de instrutoria do SENAR.",
+  "lang": "pt-BR",
   "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#ffffff",
   "theme_color": "#16a34a",
   "icons": [
     {
       "src": "https://cdn-icons-png.flaticon.com/512/1055/1055644.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     }
   ]
 }
