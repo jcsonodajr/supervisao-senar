@@ -1,63 +1,269 @@
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#16a34a">
+
     <title>Supervisão de Instrutoria - SENAR</title>
+
     <link rel="manifest" href="manifest.json">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
     <style>
-        @media print { .no-print { display: none !important; } }
-        body { -webkit-tap-highlight-color: transparent; }
-        .status-salvamento { min-height: 1.25rem; }
+        body {
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        textarea {
+            resize: vertical;
+        }
+
+        .pdf-question {
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+
+        .pdf-section-title {
+            break-after: avoid;
+            page-break-after: avoid;
+        }
+
+        .status-salvamento {
+            font-size: 12px;
+        }
+
+        /* Regras aplicadas durante a impressão convencional */
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+
+            body {
+                background: white !important;
+                padding: 0 !important;
+            }
+
+            #relatorio-pdf {
+                box-shadow: none !important;
+                max-width: none !important;
+                padding: 0 !important;
+            }
+
+            .pdf-question {
+                break-inside: avoid;
+                page-break-inside: avoid;
+            }
+        }
     </style>
+
     <script>
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js').then(() => console.log("Service Worker Registrado"));
+        if ("serviceWorker" in navigator) {
+            window.addEventListener("load", () => {
+                navigator.serviceWorker.register("./sw.js")
+                    .catch(error => {
+                        console.error("Falha ao registrar Service Worker:", error);
+                    });
+            });
         }
     </script>
 </head>
+
 <body class="bg-gray-100 text-gray-800 p-2 md:p-8 font-sans">
 
-    <div class="max-w-5xl mx-auto bg-white p-4 md:p-8 rounded-lg shadow-md" id="relatorio-pdf">
-        
-        <div class="border-b-2 border-green-600 pb-4 mb-6">
-            <h1 class="text-2xl md:text-3xl font-bold text-green-700">Supervisão de Instrutoria</h1>
-            <p class="text-sm text-gray-500 mt-1">Instrumento de Avaliação de Desempenho e Metodologia</p>
+    <main class="max-w-5xl mx-auto bg-white p-4 md:p-8 rounded-lg shadow-md">
+
+        <div id="relatorio-pdf">
+
+            <header class="border-b-2 border-green-600 pb-4 mb-6">
+                <h1 class="text-2xl md:text-3xl font-bold text-green-700">
+                    Supervisão de Instrutoria
+                </h1>
+
+                <p class="text-sm text-gray-500 mt-1">
+                    Instrumento de Avaliação de Desempenho e Metodologia
+                </p>
+
+                <p class="text-xs text-gray-500 mt-2" id="data-relatorio"></p>
+            </header>
+
+            <form id="supervisao-form">
+
+                <div id="blocos-avaliacao"></div>
+
+                <section class="mt-8 space-y-6">
+
+                    <div>
+                        <label for="rascunho"
+                               class="block font-bold text-gray-700 mb-2">
+                            Rascunho de Campo
+                        </label>
+
+                        <p class="text-sm text-gray-500 mb-2">
+                            Registre as observações feitas durante a supervisão.
+                            O conteúdo original será preservado.
+                        </p>
+
+                        <textarea
+                            id="rascunho"
+                            name="rascunho"
+                            class="w-full border p-3 rounded focus:ring-green-500 focus:border-green-500"
+                            rows="4"
+                            placeholder="Registre fatos, exemplos, situações observadas e justificativas para as avaliações."
+                        ></textarea>
+                    </div>
+
+                    <section class="border rounded-lg p-4 space-y-4">
+
+                        <h2 class="text-lg font-bold text-green-700">
+                            Aspectos positivos da instrutoria
+                        </h2>
+
+                        <div>
+                            <label for="aspectos_positivos_original"
+                                   class="block font-semibold mb-2">
+                                Texto original
+                            </label>
+
+                            <textarea
+                                id="aspectos_positivos_original"
+                                name="aspectos_positivos_original"
+                                class="w-full border p-3 rounded"
+                                rows="4"
+                                placeholder="Escreva suas observações sobre os aspectos positivos."
+                            ></textarea>
+                        </div>
+
+                        <div>
+                            <label for="aspectos_positivos"
+                                   class="block font-semibold text-green-700 mb-2">
+                                Texto revisado / versão final
+                            </label>
+
+                            <textarea
+                                id="aspectos_positivos"
+                                name="aspectos_positivos"
+                                class="w-full border border-green-300 bg-green-50 p-3 rounded"
+                                rows="4"
+                                placeholder="A versão revisada será apresentada aqui para conferência e edição."
+                            ></textarea>
+
+                            <p class="text-xs text-gray-500 mt-1">
+                                Você pode editar esta versão antes de gerar o relatório.
+                            </p>
+                        </div>
+
+                    </section>
+
+                    <section class="border rounded-lg p-4 space-y-4">
+
+                        <h2 class="text-lg font-bold text-orange-700">
+                            Aspectos discutidos para melhoria do desempenho e sugestões
+                        </h2>
+
+                        <div>
+                            <label for="aspectos_melhoria_original"
+                                   class="block font-semibold mb-2">
+                                Texto original
+                            </label>
+
+                            <textarea
+                                id="aspectos_melhoria_original"
+                                name="aspectos_melhoria_original"
+                                class="w-full border p-3 rounded"
+                                rows="4"
+                                placeholder="Registre os pontos de melhoria e as sugestões discutidas."
+                            ></textarea>
+                        </div>
+
+                        <div>
+                            <label for="aspectos_melhoria"
+                                   class="block font-semibold text-orange-700 mb-2">
+                                Texto revisado / versão final
+                            </label>
+
+                            <textarea
+                                id="aspectos_melhoria"
+                                name="aspectos_melhoria"
+                                class="w-full border border-orange-300 bg-orange-50 p-3 rounded"
+                                rows="4"
+                                placeholder="A versão revisada será apresentada aqui para conferência e edição."
+                            ></textarea>
+
+                            <p class="text-xs text-gray-500 mt-1">
+                                Você pode editar esta versão antes de gerar o relatório.
+                            </p>
+                        </div>
+
+                    </section>
+
+                </section>
+            </form>
         </div>
 
-        <form id="supervisao-form">
-            <div id="blocos-avaliacao"></div>
+        <div class="no-print mt-6 border-t pt-5 space-y-3">
 
-            <div class="mt-8 space-y-6">
-                <div>
-                    <label class="block font-bold text-gray-700 mb-2">Rascunho de Campo (Observações brutas para a IA)</label>
-                    <textarea id="rascunho" class="w-full border p-3 rounded focus:ring-green-500 focus:border-green-500" rows="3" placeholder="Digite aqui os detalhes e justificativas rápidas das notas para que a IA gere os textos finais..."></textarea>
-                </div>
+            <p id="status-salvamento"
+               class="status-salvamento text-gray-500"
+               role="status"
+               aria-live="polite">
+                Preparando o formulário...
+            </p>
 
-                <div>
-                    <label class="block font-bold text-green-700 mb-2">Aspectos positivos da instrutoria</label>
-                    <textarea id="aspectos_positivos" name="aspectos_positivos" class="w-full border p-3 rounded bg-green-50" rows="4"></textarea>
-                </div>
+            <div class="flex flex-wrap gap-3">
 
-                <div>
-                    <label class="block font-bold text-orange-700 mb-2">Aspectos discutidos para melhoria do desempenho e sugestões</label>
-                    <textarea id="aspectos_melhoria" name="aspectos_melhoria" class="w-full border p-3 rounded bg-orange-50" rows="4"></textarea>
-                </div>
+                <button
+                    type="button"
+                    id="btn-ia"
+                    onclick="refinarComIA()"
+                    class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-5 rounded shadow flex-1"
+                >
+                    Refinar textos com IA
+                </button>
+
+                <button
+                    type="button"
+                    onclick="gerarPDF()"
+                    class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-5 rounded shadow flex-1"
+                >
+                    Baixar PDF
+                </button>
+
+                <button
+                    type="button"
+                    onclick="exportarJSON()"
+                    class="bg-gray-800 hover:bg-gray-900 text-white font-bold py-3 px-5 rounded shadow flex-1"
+                >
+                    Exportar JSON
+                </button>
+
+                <button
+                    type="button"
+                    onclick="salvarAgora()"
+                    class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-5 rounded flex-1"
+                >
+                    Salvar agora
+                </button>
+
             </div>
-        </form>
 
-        <p id="status-salvamento" class="status-salvamento mt-4 text-sm text-gray-500 no-print" role="status" aria-live="polite">Carregando avaliação...</p>
-
-        <div class="mt-4 flex flex-wrap gap-4 no-print border-t pt-6">
-            <button onclick="refinarComIA()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded shadow flex-1 md:flex-none">Refinar Textos com IA</button>
-            <button onclick="gerarPDF()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded shadow flex-1 md:flex-none">Baixar PDF</button>
-            <button onclick="exportarJSON()" class="bg-gray-800 hover:bg-gray-900 text-white font-bold py-3 px-6 rounded shadow flex-1 md:flex-none">Exportar para Python/Selenium</button>
+            <p class="text-xs text-gray-500">
+                Os dados são armazenados neste navegador. Exporte o JSON
+                regularmente para manter uma cópia de segurança.
+            </p>
         </div>
-    </div>
+
+    </main>
 
     <script>
+        "use strict";
+
+        const CHAVE_STORAGE = "supervisaoSENAR";
+        const VERSAO_DADOS = 2;
+
         const escala = [
             { valor: 4, label: "Sim, plenamente" },
             { valor: 3, label: "Sim, parcialmente" },
@@ -154,183 +360,423 @@
             }
         ];
 
-        function renderizarQuestionario() {
-            const container = document.getElementById('blocos-avaliacao');
-            let html = '';
+        let salvamentoPendente = false;
 
-            questionario.forEach((bloco, bIndex) => {
-                html += `<div class="mb-8"><h2 class="text-lg md:text-xl font-bold bg-green-100 text-green-800 p-3 rounded mb-4">${bloco.categoria}</h2>`;
-                
-                bloco.itens.forEach((item, iIndex) => {
-                    const fieldId = `q_${bIndex}_${iIndex}`;
-                    html += `<div class="mb-4 pb-4 border-b border-gray-200">
-                                <p class="text-gray-700 mb-3 font-medium text-sm md:text-base leading-snug">${item}</p>
-                                <div class="flex flex-wrap gap-2 md:gap-4">`;
-                    
-                    escala.forEach(esc => {
-                        html += `<label class="flex items-center space-x-2 bg-gray-50 px-3 py-2 rounded-lg border cursor-pointer hover:bg-green-50 transition-colors">
-                                    <input type="radio" name="${fieldId}" value="${esc.valor}" class="form-radio text-green-600 h-4 w-4" onchange="salvarDados()">
-                                    <span class="text-xs md:text-sm text-gray-700 font-semibold">${esc.valor} - ${esc.label}</span>
-                                 </label>`;
-                    });
-                    
-                    html += `</div></div>`;
-                });
-                html += `</div>`;
-            });
-
-            container.innerHTML = html;
+        function atualizarStatus(mensagem, erro = false) {
+            const el = document.getElementById("status-salvamento");
+            el.textContent = mensagem;
+            el.className = "status-salvamento " +
+                (erro ? "text-red-600" : "text-gray-500");
         }
 
-        function atualizarStatusSalvamento(mensagem, sucesso = true) {
-            const status = document.getElementById('status-salvamento');
-            if (!status) return;
+        function obterCamposTexto() {
+            return [
+                "rascunho",
+                "aspectos_positivos_original",
+                "aspectos_positivos",
+                "aspectos_melhoria_original",
+                "aspectos_melhoria"
+            ];
+        }
 
-            status.textContent = mensagem;
-            status.className = `status-salvamento mt-4 text-sm no-print ${sucesso ? 'text-green-700' : 'text-red-700'}`;
+        function obterDadosFormulario() {
+            const form = document.getElementById("supervisao-form");
+            const dadosAnteriores = lerDadosSalvosSilenciosamente();
+            const dados = {};
+
+            questionario.forEach((bloco, bIndex) => {
+                bloco.itens.forEach((pergunta, iIndex) => {
+                    const nome = `q_${bIndex}_${iIndex}`;
+                    const selecionado = form.querySelector(
+                        `input[name="${nome}"]:checked`
+                    );
+
+                    if (selecionado) {
+                        dados[nome] = Number(selecionado.value);
+                    }
+                });
+            });
+
+            obterCamposTexto().forEach(id => {
+                dados[id] = document.getElementById(id).value;
+            });
+
+            return {
+                versao: VERSAO_DADOS,
+                atualizado_em: new Date().toISOString(),
+                respostas: dados,
+                // Mantém as respostas também no nível superior para
+                // facilitar a compatibilidade com a automação existente.
+                ...dados,
+                metadados: dadosAnteriores?.metadados || {}
+            };
+        }
+
+        function lerDadosSalvosSilenciosamente() {
+            try {
+                const bruto = localStorage.getItem(CHAVE_STORAGE);
+                return bruto ? JSON.parse(bruto) : null;
+            } catch (erro) {
+                console.error("Não foi possível ler os dados salvos:", erro);
+                return null;
+            }
         }
 
         function salvarDados() {
             try {
-                const form = document.getElementById('supervisao-form');
-                const formData = new FormData(form);
-                const data = Object.fromEntries(formData.entries());
+                const dados = obterDadosFormulario();
+                localStorage.setItem(CHAVE_STORAGE, JSON.stringify(dados));
+                salvamentoPendente = false;
 
-                // Campos que não possuem name dentro do formulário são adicionados manualmente.
-                data.rascunho = document.getElementById('rascunho').value;
-                data.aspectos_positivos = document.getElementById('aspectos_positivos').value;
-                data.aspectos_melhoria = document.getElementById('aspectos_melhoria').value;
+                atualizarStatus(
+                    "Salvo neste dispositivo às " +
+                    new Date().toLocaleTimeString("pt-BR")
+                );
 
-                const json = JSON.stringify(data);
-                localStorage.setItem('supervisaoSENAR', json);
-                atualizarStatusSalvamento(`Salvo neste dispositivo às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}.`);
                 return true;
             } catch (erro) {
-                console.error('Erro ao salvar a avaliação:', erro);
-                atualizarStatusSalvamento('Não foi possível salvar os dados neste dispositivo. Exporte uma cópia ou libere espaço no navegador.', false);
+                salvamentoPendente = true;
+                console.error("Falha ao salvar:", erro);
+
+                atualizarStatus(
+                    "Não foi possível salvar. Exporte seus dados ou verifique o armazenamento.",
+                    true
+                );
+
                 return false;
             }
         }
 
+        function salvarAgora() {
+            if (salvarDados()) {
+                alert("Dados salvos neste dispositivo.");
+            } else {
+                alert("Não foi possível salvar os dados. Verifique o espaço disponível no navegador.");
+            }
+        }
+
         function carregarDados() {
-            let dadosSalvos;
+            let dados;
 
             try {
-                const jsonSalvo = localStorage.getItem('supervisaoSENAR');
-                if (!jsonSalvo) {
-                    atualizarStatusSalvamento('Nenhuma avaliação anterior encontrada. As respostas serão salvas neste dispositivo.');
+                const bruto = localStorage.getItem(CHAVE_STORAGE);
+                if (!bruto) {
+                    atualizarStatus("Nenhuma avaliação anterior encontrada.");
                     return;
                 }
 
-                dadosSalvos = JSON.parse(jsonSalvo);
-                if (!dadosSalvos || typeof dadosSalvos !== 'object' || Array.isArray(dadosSalvos)) {
-                    throw new Error('O conteúdo salvo não é um objeto JSON válido.');
+                dados = JSON.parse(bruto);
+
+                if (!dados || typeof dados !== "object") {
+                    throw new Error("Formato de dados inválido.");
                 }
             } catch (erro) {
-                console.error('Erro ao recuperar a avaliação:', erro);
-                atualizarStatusSalvamento('Os dados salvos não puderam ser lidos. Não foram apagados; verifique o armazenamento do navegador.', false);
-                alert('Não foi possível ler a avaliação salva. Os dados existentes foram preservados. Se você tiver um arquivo JSON exportado anteriormente, mantenha-o como cópia de segurança.');
+                console.error("Erro ao recuperar os dados:", erro);
+                atualizarStatus(
+                    "Os dados salvos não puderam ser lidos. Evite apagar o armazenamento sem fazer uma cópia.",
+                    true
+                );
                 return;
             }
 
-            Object.entries(dadosSalvos).forEach(([key, value]) => {
-                // As chaves são geradas pelo próprio formulário; evita montar seletores com valores arbitrários.
-                if (/^q_\d+_\d+$/.test(key)) {
-                    const opcoes = document.querySelectorAll(`input[type="radio"][name="${key}"]`);
-                    opcoes.forEach(opcao => {
-                        opcao.checked = String(opcao.value) === String(value);
-                    });
+            const respostas = dados.respostas || dados;
+
+            questionario.forEach((bloco, bIndex) => {
+                bloco.itens.forEach((pergunta, iIndex) => {
+                    const nome = `q_${bIndex}_${iIndex}`;
+                    const valor = respostas[nome];
+
+                    if (valor === undefined || valor === null) return;
+
+                    const radio = document.querySelector(
+                        `input[name="${nome}"][value="${valor}"]`
+                    );
+
+                    if (radio) radio.checked = true;
+                });
+            });
+
+            const campos = obterCamposTexto();
+
+            campos.forEach(id => {
+                const campo = document.getElementById(id);
+                if (!campo) return;
+
+                if (Object.prototype.hasOwnProperty.call(dados, id)) {
+                    campo.value = dados[id] || "";
                 }
             });
 
-            document.getElementById('rascunho').value = dadosSalvos.rascunho || '';
-            document.getElementById('aspectos_positivos').value = dadosSalvos.aspectos_positivos || '';
-            document.getElementById('aspectos_melhoria').value = dadosSalvos.aspectos_melhoria || '';
-            atualizarStatusSalvamento('Avaliação anterior recuperada deste dispositivo.');
+            /*
+             * Migração dos dados da versão anterior:
+             * os campos antigos passam a ser considerados textos originais.
+             * A cópia também é colocada no campo final para não perder conteúdo.
+             */
+            if (
+                !Object.prototype.hasOwnProperty.call(
+                    dados, "aspectos_positivos_original"
+                ) &&
+                dados.aspectos_positivos
+            ) {
+                document.getElementById(
+                    "aspectos_positivos_original"
+                ).value = dados.aspectos_positivos;
+            }
+
+            if (
+                !Object.prototype.hasOwnProperty.call(
+                    dados, "aspectos_melhoria_original"
+                ) &&
+                dados.aspectos_melhoria
+            ) {
+                document.getElementById(
+                    "aspectos_melhoria_original"
+                ).value = dados.aspectos_melhoria;
+            }
+
+            atualizarStatus("Dados recuperados do armazenamento local.");
         }
 
-        ['rascunho', 'aspectos_positivos', 'aspectos_melhoria'].forEach(id => {
-            document.getElementById(id).addEventListener('input', salvarDados);
-        });
+        function renderizarQuestionario() {
+            const container = document.getElementById("blocos-avaliacao");
+            let html = "";
 
+            questionario.forEach((bloco, bIndex) => {
+                html += `
+                    <section class="mb-8 pdf-section">
+                        <h2 class="pdf-section-title text-lg md:text-xl font-bold
+                                   bg-green-100 text-green-800 p-3 rounded mb-4">
+                            ${bloco.categoria}
+                        </h2>
+                `;
+
+                bloco.itens.forEach((item, iIndex) => {
+                    const fieldId = `q_${bIndex}_${iIndex}`;
+
+                    html += `
+                        <div class="pdf-question mb-4 pb-4 border-b border-gray-200">
+                            <p class="text-gray-700 mb-3 font-medium
+                                      text-sm md:text-base leading-snug">
+                                ${item}
+                            </p>
+                            <div class="flex flex-wrap gap-2 md:gap-4">
+                    `;
+
+                    escala.forEach(esc => {
+                        html += `
+                            <label class="flex items-center space-x-2 bg-gray-50
+                                          px-3 py-2 rounded-lg border cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="${fieldId}"
+                                    value="${esc.valor}"
+                                    class="form-radio text-green-600 h-4 w-4"
+                                >
+                                <span class="text-xs md:text-sm text-gray-700 font-semibold">
+                                    ${esc.valor} - ${esc.label}
+                                </span>
+                            </label>
+                        `;
+                    });
+
+                    html += `
+                            </div>
+                        </div>
+                    `;
+                });
+
+                html += "</section>";
+            });
+
+            container.innerHTML = html;
+
+            container.querySelectorAll('input[type="radio"]').forEach(radio => {
+                radio.addEventListener("change", salvarDados);
+            });
+        }
+
+        /*
+         * Integração com IA:
+         * Esta função ainda não envia dados para um modelo.
+         * Quando o backend seguro for configurado, ele deverá devolver
+         * os dois textos revisados sem sobrescrever os originais.
+         */
         async function refinarComIA() {
-            const rascunho = document.getElementById('rascunho').value;
-            if(!rascunho) {
-                alert("Preencha o rascunho de campo para gerar o contexto da IA.");
+            const rascunho = document.getElementById("rascunho").value.trim();
+            const positivoOriginal =
+                document.getElementById("aspectos_positivos_original").value.trim();
+            const melhoriaOriginal =
+                document.getElementById("aspectos_melhoria_original").value.trim();
+
+            if (!rascunho && !positivoOriginal && !melhoriaOriginal) {
+                alert("Preencha o rascunho ou os textos originais antes de solicitar a revisão.");
                 return;
             }
-            alert("Enviando notas e rascunho para a Gemini API...\n\n(A integração da chave de API será configurada nesta etapa para redigir o texto automaticamente baseado nos manuais de FPR e Mobilização).");
+
+            salvarDados();
+
+            alert(
+                "A integração com a IA ainda precisa ser configurada.\n\n" +
+                "Seus textos originais foram preservados. " +
+                "Nenhum texto foi enviado para um serviço externo ou alterado."
+            );
         }
 
         async function gerarPDF() {
-            if (typeof html2pdf === 'undefined') {
-                alert('A biblioteca de geração de PDF não está disponível. Verifique sua conexão com a internet e tente novamente.');
+            if (salvamentoPendente && !salvarDados()) {
+                alert("Atenção: não foi possível salvar os dados. Confira o armazenamento antes de gerar o PDF.");
                 return;
             }
 
-            const elemento = document.getElementById('relatorio-pdf');
-            const opt = {
-                margin: 10,
-                filename: 'Relatorio_Supervisao_SENAR.pdf',
-                image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: {
-                    scale: 2,
-                    useCORS: true,
-                    onclone: (documentoClonado) => {
-                        documentoClonado.querySelectorAll('.no-print').forEach(el => {
-                            el.style.display = 'none';
-                        });
+            if (typeof html2pdf === "undefined") {
+                alert("A biblioteca de PDF não foi carregada. Verifique sua conexão com a internet e tente novamente.");
+                return;
+            }
+
+            const origem = document.getElementById("relatorio-pdf");
+            const clone = origem.cloneNode(true);
+
+            // Remove quaisquer elementos de interface que possam estar no relatório.
+            clone.querySelectorAll(".no-print, button").forEach(el => el.remove());
+
+            // Garante que o PDF use os valores atuais dos campos editáveis.
+            const origInputs = origem.querySelectorAll("input");
+            const cloneInputs = clone.querySelectorAll("input");
+
+            origInputs.forEach((input, index) => {
+                const destino = cloneInputs[index];
+                if (!destino) return;
+
+                if (input.type === "radio") {
+                    if (input.checked) {
+                        destino.setAttribute("checked", "checked");
+                    } else {
+                        destino.removeAttribute("checked");
                     }
+                }
+            });
+
+            const origTextareas = origem.querySelectorAll("textarea");
+            const cloneTextareas = clone.querySelectorAll("textarea");
+
+            origTextareas.forEach((textarea, index) => {
+                if (cloneTextareas[index]) {
+                    cloneTextareas[index].value = textarea.value;
+                    cloneTextareas[index].textContent = textarea.value;
+                }
+            });
+
+            const data = new Date().toISOString().slice(0, 10);
+            const wrapper = document.createElement("div");
+
+            wrapper.style.background = "#ffffff";
+            wrapper.style.color = "#1f2937";
+            wrapper.style.width = "100%";
+            wrapper.appendChild(clone);
+
+            const opcoes = {
+                margin: [10, 10, 12, 10],
+                filename: `Relatorio_Supervisao_SENAR_${data}.pdf`,
+                image: {
+                    type: "jpeg",
+                    quality: 0.96
                 },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                html2canvas: {
+                    scale: 1.5,
+                    useCORS: true,
+                    logging: false,
+                    backgroundColor: "#ffffff",
+                    scrollX: 0,
+                    scrollY: 0
+                },
+                jsPDF: {
+                    unit: "mm",
+                    format: "a4",
+                    orientation: "portrait",
+                    compress: true
+                },
+                pagebreak: {
+                    mode: ["css", "legacy"],
+                    avoid: [
+                        ".pdf-question",
+                        ".pdf-section-title",
+                        "textarea"
+                    ]
+                }
             };
 
             try {
-                await html2pdf().set(opt).from(elemento).save();
+                atualizarStatus("Gerando PDF...");
+
+                await html2pdf()
+                    .set(opcoes)
+                    .from(wrapper)
+                    .save();
+
+                atualizarStatus("PDF gerado.");
             } catch (erro) {
-                console.error('Erro ao gerar PDF:', erro);
-                alert('Não foi possível gerar o PDF. Tente novamente; se o problema continuar, verifique se a biblioteca está carregada.');
+                console.error("Erro ao gerar PDF:", erro);
+                alert("Não foi possível gerar o PDF. Consulte o console do navegador para mais detalhes.");
+                atualizarStatus("Falha ao gerar PDF.", true);
             }
         }
 
         function exportarJSON() {
-            // Tenta salvar o estado atual antes de exportar.
-            const salvou = salvarDados();
-            if (!salvou) {
-                alert('A exportação foi cancelada porque não foi possível salvar os dados atuais no navegador.');
-                return;
-            }
+            // Tenta salvar e exporta os dados atuais mesmo se o armazenamento falhar.
+            const dados = obterDadosFormulario();
 
-            const dados = localStorage.getItem('supervisaoSENAR');
-            if (!dados) {
-                alert('Nenhum dado para exportar.');
-                return;
-            }
-
-            let url;
             try {
-                const blob = new Blob([dados], { type: 'application/json;charset=utf-8' });
-                url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'payload_automacao.json';
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-
-                // Libera o endereço temporário depois que o navegador iniciar o download.
-                window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+                localStorage.setItem(CHAVE_STORAGE, JSON.stringify(dados));
+                salvamentoPendente = false;
             } catch (erro) {
-                console.error('Erro ao exportar JSON:', erro);
-                if (url) URL.revokeObjectURL(url);
-                alert('Não foi possível exportar o arquivo JSON. Tente novamente.');
+                console.error("Falha ao salvar antes da exportação:", erro);
+                alert("O armazenamento local falhou. Será feita uma tentativa de exportar os dados atuais diretamente.");
             }
+
+            const blob = new Blob(
+                [JSON.stringify(dados, null, 2)],
+                { type: "application/json;charset=utf-8" }
+            );
+
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+
+            link.href = url;
+            link.download = "payload_automacao.json";
+
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
         }
 
-        window.addEventListener('DOMContentLoaded', () => {
+        function atualizarDataRelatorio() {
+            const data = new Date();
+
+            document.getElementById("data-relatorio").textContent =
+                "Data de emissão: " +
+                data.toLocaleDateString("pt-BR");
+        }
+
+        function iniciarAplicacao() {
             renderizarQuestionario();
             carregarDados();
-        });
+            atualizarDataRelatorio();
+
+            // Os campos de texto são salvos automaticamente ao serem editados.
+            obterCamposTexto().forEach(id => {
+                document.getElementById(id).addEventListener("input", salvarDados);
+            });
+
+            // Salva antes de sair da página, quando o navegador permitir.
+            window.addEventListener("pagehide", () => {
+                salvarDados();
+            });
+        }
+
+        window.addEventListener("DOMContentLoaded", iniciarAplicacao);
     </script>
+
 </body>
 </html>
