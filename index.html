@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supervisão de Instrutoria - SENAR</title>
+    <link rel="manifest" href="manifest.json">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @media print {
+            .no-print { display: none !important; }
+            body { background: #fff !important; padding: 0 !important; margin: 0 !important; }
+            #relatorio-pdf { width: 100% !important; max-width: none !important; box-shadow: none !important; padding: 8mm !important; margin: 0 !important; }
+            input, select, textarea { color: #111 !important; background: #fff !important; border-color: #999 !important; }
+            .bloco-avaliacao, .item-pergunta, section { break-inside: auto; page-break-inside: auto; }
+            .item-pergunta { break-inside: avoid; page-break-inside: avoid; }
+            h1, h2 { break-after: avoid; page-break-after: avoid; }
+            textarea { white-space: pre-wrap; }
+            @page { size: A4 portrait; margin: 10mm; }
+        }
+        body { -webkit-tap-highlight-color: transparent; }
+        .campo-relatorio { width: 100%; border: 1px solid #d1d5db; padding: .65rem .75rem; border-radius: .375rem; background: #fff; }
+        .campo-relatorio:focus { outline: 2px solid #16a34a; outline-offset: 1px; }
+    </style>
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').then(() => console.log("Service Worker Registrado"));
+        }
+    </script>
+</head>
+<body class="bg-gray-100 text-gray-800 p-2 md:p-8 font-sans">
+
+    <div class="max-w-5xl mx-auto bg-white p-4 md:p-8 rounded-lg shadow-md" id="relatorio-pdf">
+        
+        <div class="border-b-2 border-green-600 pb-4 mb-6">
+            <h1 class="text-2xl md:text-3xl font-bold text-green-700">Supervisão de Instrutoria</h1>
+            <p class="text-sm text-gray-500 mt-1">Instrumento de Avaliação de Desempenho e Metodologia SENAR</p>
+        </div>
+
+        <form id="supervisao-form">
+            <section class="mb-8 rounded-lg border border-gray-200 p-4 md:p-6">
+                <h2 class="text-lg md:text-xl font-bold text-green-800 mb-4">Identificação da ação</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="natureza_acao" class="block font-semibold text-gray-700 mb-1">Natureza da ação</label>
+                        <select id="natureza_acao" name="natureza_acao" class="campo-relatorio" required>
+                            <option value="">Selecione a natureza da ação</option>
+                            <option>Administrativo</option><option>Atendimento</option>
+                            <option>Classificação de eventos extra-pat</option><option>Consulta médica</option>
+                            <option>Contato</option><option>Feriados</option><option>Férias</option><option>Folga</option>
+                            <option>Intercorrências</option><option>Palestrantes</option><option>Participação</option>
+                            <option>Planejamento</option><option>Plano instrucional e catálogo de cursos</option>
+                            <option>Representação</option><option>Reunião</option><option>Supervisão à instrutoria</option>
+                            <option>Supervisão à mobilização</option><option>Tutoria</option><option>Visita</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="evento" class="block font-semibold text-gray-700 mb-1">Evento</label>
+                        <input id="evento" name="evento" type="text" class="campo-relatorio" placeholder="Informe o evento">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label for="descricao_acao" class="block font-semibold text-gray-700 mb-1">Descrição da ação</label>
+                        <textarea id="descricao_acao" name="descricao_acao" rows="3" class="campo-relatorio" placeholder="Descreva a ação realizada"></textarea>
+                    </div>
+                    <div>
+                        <label for="municipio_origem" class="block font-semibold text-gray-700 mb-1">Município de origem</label>
+                        <select id="municipio_origem" name="municipio_origem" class="campo-relatorio" required>
+                            <option value="">Selecione o município de origem</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="municipio_destino" class="block font-semibold text-gray-700 mb-1">Município de destino</label>
+                        <select id="municipio_destino" name="municipio_destino" class="campo-relatorio" required>
+                            <option value="">Selecione o município de destino</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="periodo_inicio" class="block font-semibold text-gray-700 mb-1">Período da ação — data inicial</label>
+                        <input id="periodo_inicio" name="periodo_inicio" type="text" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA" class="campo-relatorio data-br" autocomplete="off" required>
+                    </div>
+                    <div>
+                        <label for="periodo_fim" class="block font-semibold text-gray-700 mb-1">Período da ação — data final</label>
+                        <input id="periodo_fim" name="periodo_fim" type="text" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA" class="campo-relatorio data-br" autocomplete="off" required>
+                    </div>
+                </div>
+            </section>
+            <div id="blocos-avaliacao"></div>
+
+            <div class="mt-8 space-y-6">
+                <div>
+                    <label class="block font-bold text-gray-700 mb-2">Rascunho de Campo (Observações brutas para a IA)</label>
+                    <textarea id="rascunho" class="w-full border p-3 rounded focus:ring-green-500 focus:border-green-500" rows="3" placeholder="Digite as justificativas rápidas para a IA formatar baseada na Andragogia e Eixo Mobilizador..."></textarea>
+                </div>
+
+                <div>
+                    <label class="block font-bold text-green-700 mb-2">Aspectos positivos da instrutoria</label>
+                    <textarea id="aspectos_positivos" name="aspectos_positivos" class="w-full border p-3 rounded bg-green-50" rows="4"></textarea>
+                </div>
+
+                <div>
+                    <label class="block font-bold text-orange-700 mb-2">Aspectos discutidos para melhoria do desempenho e sugestões</label>
+                    <textarea id="aspectos_melhoria" name="aspectos_melhoria" class="w-full border p-3 rounded bg-orange-50" rows="4"></textarea>
+                </div>
+            </div>
+        </form>
+
+        <div class="mt-8 flex flex-wrap gap-4 no-print border-t pt-6">
+            <button type="button" onclick="refinarComIA()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded shadow flex-1 md:flex-none">Refinar Textos com IA</button>
+            <button type="button" onclick="gerarPDF()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded shadow flex-1 md:flex-none">Imprimir / Gerar PDF</button>
+        </div>
+    </div>
+
+    <script>
+        const escala = [
+            { valor: 4, label: "Sim, plenamente" },
+            { valor: 3, label: "Sim, parcialmente" },
+            { valor: 2, label: "Precisa melhorar" },
+            { valor: 1, label: "Não" },
+            { valor: 0, label: "Não observado" }
+        ];
+
+        const questionario = [
+            { categoria: "Objetivos", itens: ["Apresentou, aos participantes, os objetivos instrucionais ou os resultados esperados.", "Seguiu os objetivos planejados, numa sequência lógica."] },
+            { categoria: "Conteúdo programático", itens: ["Seguiu a sequência planejada para desenvolvimento do conteúdo.", "Usou exemplos baseados em situações vivenciadas pelos participantes.", "Desenvolveu o conteúdo dentro do tempo previsto.", "A parte teórica desenvolveu-se conjuntamente á prática.", "Compatibilizou o conteúdo com interesses e necessidades dos participantes.", "Ao iniciar novo conteúdo, apresentou a sua relação com outros já abordados.", "Demonstrou segurança em seus posicionamentos.", "Utilizou a linguagem escrita e oral corretamente.", "Foi claro e objetivo na exposição dos assuntos.", "Abordou questões relacionadas a saúde e segurança do trabalhador e/ou aspectos sobre meio ambiente, cidadania, qualidade e produtividade, sempre que pertinentes.", "Decodificou os termos técnicos, quando utilizados.", "Evidenciou a aplicabilidade prática do conteúdo ministrado."] },
+            { categoria: "Desenvolvimentos das técnicas instrucionais", itens: ["Dominou técnicas instrucionais aplicadas.", "As técnicas utilizadas foram apropriadas ao conteúdo ministrado.", "As técnicas utilizadas foram compatíveis com as características dos participantes."] },
+            { categoria: "Recursos Instrucionais", itens: ["Os recursos instrucionais necessários para o desenvolvimento do evento foram conferidos e testados.", "Foram utilizados no momento oportuno.", "Facilitaram a compreensão do assunto.", "Foram disponibilizados na quantidade apropriada ao número de participantes.", "Foram adequados às características dos participantes.", "Apresentaram bom estado de conservação, sem defeitos comprometedores para a aprendizagem.", "Estavam adequados ao local do evento."] },
+            { categoria: "Avaliação", itens: ["Aplicou: diagnóstica, formativa somativa.", "Os procedimentos de avaliação foram compatíveis com as características dos participantes.", "Informou aos participantes sobre seus acertos e erros, apresentando-lhes respostas/comportamento corretos."] },
+            { categoria: "Plano instrucional", itens: ["Portou o plano instrucional em formato físico.", "Seguiu o plano instrucional elaborado.", "Participou da elaboração do plano instrucional.", "Necessitou ajustar/modificar o plano instrucional."] },
+            { categoria: "Postura do instrutor", itens: ["Informou os critérios para a certificação.", "Apresentou coerência entre o que apontava como correto e o que executava perante a turma.", "Estabeleceu contrato psicológico e o afixou em local visível durante o evento.", "Forneceu as informações necessárias para que os participantes apresentassem comportamento esperado.", "Estabeleceu um bom relacionamento com os participantes.", "Realizou as práticas de forma que todos os participantes conseguissem visualizá-las.", "Exerceu liderança perante a turma, estabelecendo um clima de organização.", "Deu oportunidade a todos os participantes de realizarem cada prática.", "Foi hábil e criativo na resolução de problema.", "Supervisionou a atividade prática realizada por cada participante.", "Foi pontual.", "Preocupou-se com sua aparência pessoal.", "Foi assíduo.", "Preocupou-se em utilizar traje adequado à situação de trabalho em que encontrava.", "Estimulou a participação ativa dos participantes.", "Orientou quanto aos recursos necessários a serem providenciados pelos participantes.", "Valorizou os participantes pelo desempenho correto nas práticas e/ou na resolução de problemas propostos.", "Organizou o espaço físico.", "Socializou as respostas das perguntas individuais."] }
+        ];
+
+        function renderizarQuestionario() {
+            const container = document.getElementById('blocos-avaliacao');
+            let html = '';
+            questionario.forEach((bloco, bIndex) => {
+                html += `<div class="mb-8 bloco-avaliacao"><h2 class="text-lg md:text-xl font-bold bg-green-100 text-green-800 p-3 rounded mb-4">${bloco.categoria}</h2>`;
+                bloco.itens.forEach((item, iIndex) => {
+                    const fieldId = `q_${bIndex}_${iIndex}`;
+                    html += `<div class="mb-4 pb-4 border-b border-gray-200 item-pergunta">
+                                <label for="${fieldId}" class="block text-gray-700 mb-2 font-medium text-sm md:text-base leading-snug">${item}</label>
+                                <select id="${fieldId}" name="${fieldId}" class="campo-relatorio avaliacao-select">
+                                    <option value="">Selecione uma avaliação</option>`;
+                    escala.forEach(esc => {
+                        html += `<option value="${esc.valor}">${esc.valor} - ${esc.label}</option>`;
+                    });
+                    html += `</select></div>`;
+                });
+                html += `</div>`;
+            });
+            container.innerHTML = html;
+        }
+
+        const municipiosMS = [
+            "Água Clara", "Alcinópolis", "Amambai", "Anastácio", "Anaurilândia", "Angélica", "Antônio João", "Aparecida do Taboado", "Aquidauana", "Aral Moreira", "Bandeirantes", "Bataguassu", "Bataiporã", "Bela Vista", "Bodoquena", "Bonito", "Brasilândia", "Caarapó", "Camapuã", "Campo Grande", "Caracol", "Cassilândia", "Chapadão do Sul", "Corguinho", "Coronel Sapucaia", "Corumbá", "Costa Rica", "Coxim", "Deodápolis", "Dois Irmãos do Buriti", "Douradina", "Dourados", "Eldorado", "Fátima do Sul", "Figueirão", "Glória de Dourados", "Guia Lopes da Laguna", "Iguatemi", "Inocência", "Itaporã", "Itaquiraí", "Ivinhema", "Japorã", "Jaraguari", "Jardim", "Jateí", "Juti", "Ladário", "Laguna Carapã", "Maracaju", "Miranda", "Mundo Novo", "Naviraí", "Nioaque", "Nova Alvorada do Sul", "Nova Andradina", "Novo Horizonte do Sul", "Paraíso das Águas", "Paranaíba", "Paranhos", "Pedro Gomes", "Ponta Porã", "Porto Murtinho", "Ribas do Rio Pardo", "Rio Brilhante", "Rio Negro", "Rio Verde de Mato Grosso", "Rochedo", "Santa Rita do Pardo", "São Gabriel do Oeste", "Selvíria", "Sete Quedas", "Sidrolândia", "Sonora", "Tacuru", "Taquarussu", "Terenos", "Três Lagoas", "Vicentina"
+        ];
+
+        function preencherMunicipios() {
+            ["municipio_origem", "municipio_destino"].forEach(id => {
+                const select = document.getElementById(id);
+                municipiosMS.forEach(municipio => {
+                    const option = document.createElement("option");
+                    option.value = municipio.trim();
+                    option.textContent = municipio.trim();
+                    select.appendChild(option);
+                });
+            });
+        }
+
+        function configurarDatas() {
+            document.querySelectorAll(".data-br").forEach(campo => {
+                campo.addEventListener("input", () => {
+                    let numeros = campo.value.replace(/\D/g, "").slice(0, 8);
+                    if (numeros.length > 4) numeros = numeros.slice(0, 2) + "/" + numeros.slice(2, 4) + "/" + numeros.slice(4);
+                    else if (numeros.length > 2) numeros = numeros.slice(0, 2) + "/" + numeros.slice(2);
+                    campo.value = numeros;
+                });
+                campo.addEventListener("change", () => {
+                    if (campo.value && !validarDataBR(campo.value)) {
+                        alert("Informe uma data válida no formato DD/MM/AAAA.");
+                        campo.focus();
+                    }
+                });
+            });
+        }
+
+        function validarDataBR(valor) {
+            const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(valor);
+            if (!m) return false;
+            const dia = Number(m[1]), mes = Number(m[2]), ano = Number(m[3]);
+            const data = new Date(ano, mes - 1, dia);
+            return data.getFullYear() === ano && data.getMonth() === mes - 1 && data.getDate() === dia;
+        }
+
+        async function refinarComIA() {
+            const rascunho = document.getElementById('rascunho').value.trim();
+            if (!rascunho) {
+                alert('Preencha o Rascunho de Campo antes de solicitar o refinamento.');
+                return;
+            }
+            alert('A integração com a Gemini API ainda não está configurada neste arquivo. Para funcionar, é necessário configurar uma API em um serviço de backend seguro; não é recomendado colocar a chave da API diretamente no index.html publicado no GitHub Pages. Os campos não foram alterados.');
+        }
+
+        function gerarPDF() {
+            const formulario = document.getElementById('supervisao-form');
+            if (!formulario.reportValidity()) return;
+            const inicio = document.getElementById('periodo_inicio').value;
+            const fim = document.getElementById('periodo_fim').value;
+            if (!validarDataBR(inicio) || !validarDataBR(fim)) {
+                alert('Preencha as duas datas no formato DD/MM/AAAA.');
+                return;
+            }
+            const [di, mi, ai] = inicio.split('/').map(Number);
+            const [df, mf, af] = fim.split('/').map(Number);
+            if (new Date(ai, mi - 1, di) > new Date(af, mf - 1, df)) {
+                alert('A data final não pode ser anterior à inicial.');
+                return;
+            }
+            // Usa a janela de impressão do navegador: permite imprimir ou selecionar "Salvar como PDF".
+            window.print();
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            preencherMunicipios();
+            configurarDatas();
+            renderizarQuestionario();
+        });
+    </script>
+</body>
+</html>
