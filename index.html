@@ -567,11 +567,7 @@ async function refinarComIA() {
     }
 }
 
-async function gerarPDF() {
-    const botao = document.querySelector(
-        'button[onclick="gerarPDF()"]'
-    );
-
+function gerarPDF() {
     const supervisor = document.getElementById("supervisor");
     const dataInicio = document.getElementById("data_inicio").value.trim();
     const dataFim = document.getElementById("data_fim").value.trim();
@@ -601,19 +597,28 @@ async function gerarPDF() {
         }
     }
 
-    if (typeof html2pdf === "undefined") {
-        alert("A biblioteca de geração de PDF não foi carregada. Verifique sua conexão com a internet.");
-        return;
-    }
+    const obterValor = id => {
+        const campo = document.getElementById(id);
+        return campo ? campo.value.trim() : "";
+    };
 
-    const texto = id => document.getElementById(id).value;
+    // Prepara os campos de texto para impressão.
+    const camposTexto = [
+        ["descricao_acao", "print-descricao_acao"],
+        ["evento", "print-evento"],
+        ["aspectos_positivos", "print-aspectos_positivos"],
+        ["aspectos_melhoria", "print-aspectos_melhoria"]
+    ];
 
-    document.getElementById("print-descricao_acao").textContent =
-        texto("descricao_acao");
+    camposTexto.forEach(([origem, destino]) => {
+        const elemento = document.getElementById(destino);
 
-    document.getElementById("print-evento").textContent =
-        texto("evento");
+        if (elemento) {
+            elemento.textContent = obterValor(origem);
+        }
+    });
 
+    // Prepara os campos de identificação para impressão.
     const camposSelecao = [
         ["natureza_acao", "print-natureza_acao"],
         ["municipio_origem", "print-municipio_origem"],
@@ -622,6 +627,9 @@ async function gerarPDF() {
         ["data_fim", "print-data_fim"]
     ];
 
+    const relatorio = document.getElementById("relatorio-pdf");
+    const blocos = document.getElementById("blocos-avaliacao");
+
     camposSelecao.forEach(([origem, destino]) => {
         let elemento = document.getElementById(destino);
 
@@ -629,158 +637,47 @@ async function gerarPDF() {
             elemento = document.createElement("div");
             elemento.id = destino;
             elemento.className = "print-text";
-            document.getElementById("relatorio-pdf").insertBefore(
-                elemento,
-                document.getElementById("blocos-avaliacao")
-            );
+
+            // Insere no pai correto para evitar erro de DOM.
+            blocos.parentNode.insertBefore(elemento, blocos);
         }
 
         const campo = document.getElementById(origem);
-        elemento.textContent = campo.tagName === "SELECT"
-            ? (campo.value ? campo.options[campo.selectedIndex].text : "Não informado")
-            : (campo.value || "Não informado");
+
+        if (campo && campo.tagName === "SELECT") {
+            elemento.textContent = campo.value
+                ? campo.options[campo.selectedIndex].text
+                : "Não informado";
+        } else {
+            elemento.textContent = campo && campo.value.trim()
+                ? campo.value.trim()
+                : "Não informado";
+        }
     });
 
-    document.getElementById("print-aspectos_positivos").textContent =
-        texto("aspectos_positivos");
-
-    document.getElementById("print-aspectos_melhoria").textContent =
-        texto("aspectos_melhoria");
-
+    // Atualiza a data de emissão.
     document.getElementById("data-relatorio").textContent =
         "Data de emissão: " + new Date().toLocaleDateString("pt-BR");
 
+    // Atualiza as notas e suas descrições.
     questionario.forEach((bloco, b) => {
-        bloco.itens.forEach((_, i) => atualizarSignificado(`q_${b}_${i}`));
+        bloco.itens.forEach((_, i) => {
+            atualizarSignificado(`q_${b}_${i}`);
+        });
     });
 
-    const original = document.getElementById("relatorio-pdf");
-    const copia = original.cloneNode(true);
-
-    // Remove elementos que não devem aparecer no PDF.
-    copia.querySelectorAll(".no-print, .screen-only, button").forEach(el => el.remove());
-
-    // Substitui os campos editáveis por seus valores de impressão.
-    copia.querySelectorAll("select, input, textarea").forEach(el => {
-        el.style.display = "none";
+    // Garante que os valores de impressão estejam atualizados.
+    relatorio.querySelectorAll(".print-text").forEach(elemento => {
+        elemento.style.whiteSpace = "pre-wrap";
+        elemento.style.overflowWrap = "anywhere";
     });
 
-    copia.querySelectorAll(".print-text").forEach(el => {
-        el.style.display = "block";
-        el.style.whiteSpace = "pre-wrap";
-        el.style.overflowWrap = "anywhere";
-    });
+    atualizarStatus(
+        "Relatório preparado. Escolha 'Salvar como PDF' na janela de impressão."
+    );
 
-    copia.querySelectorAll(".rating-description").forEach(el => {
-        el.style.display = "none";
-    });
-
-    copia.querySelectorAll(".rating-text").forEach(el => {
-        el.classList.remove("hidden");
-        el.style.display = "inline";
-        el.style.visibility = "visible";
-    });
-
-    copia.style.width = "100%";
-    copia.style.maxWidth = "100%";
-    copia.style.background = "#ffffff";
-    copia.style.color = "#222222";
-    copia.style.padding = "0";
-    copia.style.fontFamily = "Arial, sans-serif";
-
-    const nomeArquivo =
-        "Supervisao_SENAR_" +
-        new Date().toISOString().slice(0, 10) +
-        ".pdf";
-
-    const opcoesPDF = {
-        margin: [10, 10, 10, 10],
-        filename: nomeArquivo,
-        image: { type: "jpeg", quality: 0.98 },
-        html2canvas: { scale: 1.5, useCORS: true, backgroundColor: "#ffffff" },
-        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-        pagebreak: { mode: ["css", "legacy"] }
-    };
-
-    const textoStatus = document.getElementById("status-salvamento");
-
-    try {
-        if (botao) {
-            botao.disabled = true;
-            botao.textContent = "Gerando PDF...";
-        }
-
-        atualizarStatus("Gerando o relatório em PDF...");
-
-        const pdfBlob = await html2pdf()
-            .set(opcoesPDF)
-            .from(copia)
-            .outputPdf("blob");
-
-        // Disponibiliza o PDF para download.
-        const urlPDF = URL.createObjectURL(pdfBlob);
-        const link = document.createElement("a");
-        link.href = urlPDF;
-        link.download = nomeArquivo;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        setTimeout(() => URL.revokeObjectURL(urlPDF), 60000);
-
-        // Configure este endereço depois de publicar o Apps Script.
-        const URL_APPS_SCRIPT = "COLE_AQUI_A_URL_DO_APPS_SCRIPT";
-
-        if (URL_APPS_SCRIPT.startsWith("https://script.google.com/")) {
-            atualizarStatus("PDF gerado. Enviando ao supervisor...");
-
-            const base64 = await new Promise((resolve, reject) => {
-                const leitor = new FileReader();
-                leitor.onload = () => resolve(
-                    String(leitor.result).split(",")[1]
-                );
-                leitor.onerror = reject;
-                leitor.readAsDataURL(pdfBlob);
-            });
-
-            const respostaEnvio = await fetch(URL_APPS_SCRIPT, {
-                method: "POST",
-                mode: "no-cors",
-                headers: { "Content-Type": "text/plain;charset=utf-8" },
-                body: JSON.stringify({
-                    destinatario: supervisor.value,
-                    nomeArquivo,
-                    pdfBase64: base64,
-                    natureza: document.getElementById("natureza_acao").value,
-                    evento: texto("evento")
-                })
-            });
-
-            // Em modo no-cors, o navegador não permite ler a resposta
-            // do servidor. O envio precisa ser confirmado no Gmail.
-            atualizarStatus(
-                "PDF baixado. Solicitação de envio realizada; confirme o recebimento no Gmail."
-            );
-            alert(
-                "O PDF foi gerado e baixado. A solicitação de envio foi encaminhada; confirme o recebimento no e-mail."
-            );
-        } else {
-            atualizarStatus(
-                "PDF gerado e baixado. Configure o Apps Script para habilitar o envio por e-mail."
-            );
-            alert(
-                "O PDF foi gerado e baixado. O envio automático ainda depende da configuração do Apps Script."
-            );
-        }
-    } catch (erro) {
-        console.error("Erro ao gerar o PDF:", erro);
-        atualizarStatus("Erro ao gerar o PDF.", true);
-        alert("Não foi possível gerar o PDF.\n\nDetalhe: " + (erro.message || erro));
-    } finally {
-        if (botao) {
-            botao.disabled = false;
-            botao.textContent = "Imprimir / Salvar PDF";
-        }
-    }
+    // Abre a janela nativa de impressão do navegador.
+    window.print();
 }
 
 function iniciarAplicacao() {
