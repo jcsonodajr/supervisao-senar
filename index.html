@@ -147,6 +147,7 @@ if ("serviceWorker" in navigator) {
             <option>Tutoria</option>
             <option>Visita</option>
         </select>
+        <div id="print-natureza_acao" class="print-text pt-2 font-medium text-gray-800 text-base"></div>
     </div>
 
     <div>
@@ -156,7 +157,7 @@ if ("serviceWorker" in navigator) {
         <textarea id="descricao_acao" name="descricao_acao"
             class="w-full border rounded p-3"
             placeholder="Descreva a ação realizada..."></textarea>
-        <div id="print-descricao_acao" class="print-text"></div>
+        <div id="print-descricao_acao" class="print-text pt-2 font-medium text-gray-800 text-base"></div>
     </div>
 
     <div>
@@ -166,7 +167,7 @@ if ("serviceWorker" in navigator) {
         <input id="evento" name="evento" type="text"
             class="w-full border rounded p-3"
             placeholder="Informe o evento">
-        <div id="print-evento" class="print-text"></div>
+        <div id="print-evento" class="print-text pt-2 font-medium text-gray-800 text-base"></div>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -178,6 +179,7 @@ if ("serviceWorker" in navigator) {
                 class="w-full border rounded p-3 bg-white">
                 <option value="">Selecione o município</option>
             </select>
+            <div id="print-municipio_origem" class="print-text pt-2 font-medium text-gray-800 text-base"></div>
         </div>
 
         <div>
@@ -188,6 +190,7 @@ if ("serviceWorker" in navigator) {
                 class="w-full border rounded p-3 bg-white">
                 <option value="">Selecione o município</option>
             </select>
+            <div id="print-municipio_destino" class="print-text pt-2 font-medium text-gray-800 text-base"></div>
         </div>
     </div>
 
@@ -201,6 +204,7 @@ if ("serviceWorker" in navigator) {
                 placeholder="DD/MM/AAAA"
                 pattern="(0[1-9]|[12][0-9]|3[01])/(0[1-9]|1[0-2])/[0-9]{4}"
                 class="w-full border rounded p-3">
+            <div id="print-data_inicio" class="print-text pt-2 font-medium text-gray-800 text-base"></div>
         </div>
 
         <div>
@@ -212,6 +216,7 @@ if ("serviceWorker" in navigator) {
                 placeholder="DD/MM/AAAA"
                 pattern="(0[1-9]|[12][0-9]|3[01])/(0[1-9]|1[0-2])/[0-9]{4}"
                 class="w-full border rounded p-3">
+            <div id="print-data_fim" class="print-text pt-2 font-medium text-gray-800 text-base"></div>
         </div>
     </div>
 </section>
@@ -569,15 +574,9 @@ async function refinarComIA() {
     }
 }
 
-async function gerarPDF() {
-    const supervisor = document.getElementById("supervisor");
+function gerarPDF() {
     const dataInicio = document.getElementById("data_inicio").value.trim();
     const dataFim = document.getElementById("data_fim").value.trim();
-
-    if (!supervisor || !supervisor.value) {
-        alert("Selecione o supervisor que receberá o relatório.");
-        return;
-    }
 
     if (dataInicio && !validarDataCompleta(dataInicio)) {
         alert("Informe uma data inicial válida no formato DD/MM/AAAA.");
@@ -604,11 +603,12 @@ async function gerarPDF() {
         return el ? el.value.trim() : "";
     };
 
-    document.getElementById("print-descricao_acao").textContent =
-        texto("descricao_acao") || "Não informado";
+    // Preenche os blocos de texto para impressão
+    const descEl = document.getElementById("print-descricao_acao");
+    if (descEl) descEl.textContent = texto("descricao_acao") || "Não informado";
 
-    document.getElementById("print-evento").textContent =
-        texto("evento") || "Não informado";
+    const evEl = document.getElementById("print-evento");
+    if (evEl) evEl.textContent = texto("evento") || "Não informado";
 
     const camposSelecao = [
         ["natureza_acao", "print-natureza_acao"],
@@ -639,110 +639,26 @@ async function gerarPDF() {
     const posFinal = texto("aspectos_positivos") || texto("aspectos_positivos_original");
     const melFinal = texto("aspectos_melhoria") || texto("aspectos_melhoria_original");
 
-    document.getElementById("print-aspectos_positivos").textContent =
-        posFinal || "Não informado";
+    const posEl = document.getElementById("print-aspectos_positivos");
+    if (posEl) posEl.textContent = posFinal || "Não informado";
 
-    document.getElementById("print-aspectos_melhoria").textContent =
-        melFinal || "Não informado";
+    const melEl = document.getElementById("print-aspectos_melhoria");
+    if (melEl) melEl.textContent = melFinal || "Não informado";
 
-    document.getElementById("data-relatorio").textContent =
-        "Data de emissão: " + new Date().toLocaleDateString("pt-BR");
+    const dataRel = document.getElementById("data-relatorio");
+    if (dataRel) {
+        dataRel.textContent = "Data de emissão: " + new Date().toLocaleDateString("pt-BR");
+    }
 
     questionario.forEach((bloco, b) => {
         bloco.itens.forEach((_, i) => atualizarSignificado(`q_${b}_${i}`));
     });
 
-    atualizarStatus("Gerando o PDF e enviando por e-mail...");
+    atualizarStatus("Abrindo janela de impressão / Salvar como PDF...");
 
-    const botao = document.querySelector('button[onclick="gerarPDF()"]');
-    if (botao) {
-        botao.disabled = true;
-        botao.textContent = "Processando e enviando...";
-    }
-
-    try {
-        const original = document.getElementById("relatorio-pdf");
-        const copia = original.cloneNode(true);
-
-        copia.querySelectorAll(".no-print, .screen-only, button").forEach(el => el.remove());
-        copia.querySelectorAll("select, input, textarea").forEach(el => el.style.display = "none");
-        copia.querySelectorAll(".print-text").forEach(el => {
-            el.style.display = "block";
-            el.style.whiteSpace = "pre-wrap";
-            el.style.overflowWrap = "anywhere";
-        });
-        copia.querySelectorAll(".rating-description").forEach(el => el.style.display = "none");
-        copia.querySelectorAll(".rating-text").forEach(el => {
-            el.classList.remove("hidden");
-            el.style.display = "inline";
-            el.style.visibility = "visible";
-        });
-
-        copia.style.width = "210mm";
-        copia.style.background = "#ffffff";
-        copia.style.color = "#222222";
-        copia.style.padding = "10mm";
-        copia.style.fontFamily = "Arial, sans-serif";
-
-        const nomeArquivo = "Supervisao_SENAR_" + new Date().toISOString().slice(0, 10) + ".pdf";
-
-        const opcoesPDF = {
-            margin: [5, 5, 5, 5],
-            filename: nomeArquivo,
-            image: { type: "jpeg", quality: 0.98 },
-            html2canvas: { scale: 1.5, useCORS: true, backgroundColor: "#ffffff" },
-            jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-            pagebreak: { mode: ["css", "legacy"] }
-        };
-
-        const pdfBlob = await html2pdf().set(opcoesPDF).from(copia).outputPdf("blob");
-
-        // Download local para o usuário ter o PDF imediatamente
-        const urlPDF = URL.createObjectURL(pdfBlob);
-        const link = document.createElement("a");
-        link.href = urlPDF;
-        link.download = nomeArquivo;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        setTimeout(() => URL.revokeObjectURL(urlPDF), 60000);
-
-        // Envio automático para o Apps Script
-        const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbzgS38dKI6MqwzPoeAbKrQWZRIScCBZ_M2VShYlTSSlok0CvH8uh_fjhH2at3uRP2ER-Q/exec";
-
-        const base64 = await new Promise((resolve, reject) => {
-            const leitor = new FileReader();
-            leitor.onload = () => resolve(String(leitor.result).split(",")[1]);
-            leitor.onerror = reject;
-            leitor.readAsDataURL(pdfBlob);
-        });
-
-        await fetch(URL_APPS_SCRIPT, {
-            method: "POST",
-            mode: "no-cors",
-            headers: { "Content-Type": "text/plain;charset=utf-8" },
-            body: JSON.stringify({
-                destinatario: supervisor.value,
-                nomeArquivo: nomeArquivo,
-                pdfBase64: base64,
-                natureza: document.getElementById("natureza_acao").value || "Geral",
-                evento: texto("evento") || "Supervisão"
-            })
-        });
-
-        atualizarStatus("PDF gerado, baixado e e-mail enviado ao supervisor!");
-        alert("Sucesso! O PDF foi baixado no seu dispositivo e o e-mail foi disparado para " + supervisor.value);
-
-    } catch (erro) {
-        console.error("Erro no processo de PDF/Email:", erro);
-        atualizarStatus("Erro ao gerar PDF ou enviar e-mail.", true);
-        alert("Ocorreu um erro: " + (erro.message || erro));
-    } finally {
-        if (botao) {
-            botao.disabled = false;
-            botao.textContent = "Imprimir / Salvar PDF";
-        }
-    }
+    setTimeout(() => {
+        window.print();
+    }, 150);
 }
 
 function iniciarAplicacao() {
@@ -750,8 +666,10 @@ function iniciarAplicacao() {
     preencherMunicipios();
     configurarDatas();
 
-    document.getElementById("data-relatorio").textContent =
-        "Data de emissão: " + new Date().toLocaleDateString("pt-BR");
+    const dataRel = document.getElementById("data-relatorio");
+    if (dataRel) {
+        dataRel.textContent = "Data de emissão: " + new Date().toLocaleDateString("pt-BR");
+    }
 
     obterCamposTexto().forEach(id => {
         const campo = document.getElementById(id);
