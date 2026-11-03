@@ -271,7 +271,7 @@ if ("serviceWorker" in navigator) {
     <p id="status-salvamento" class="status-salvamento text-gray-500" role="status" aria-live="polite">Preparando o formulário...</p>
     <div class="flex flex-wrap gap-3">
         <button type="button" id="btn-ia" onclick="refinarComIA()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-5 rounded shadow flex-1">Refinar textos com IA</button>
-        <button type="button" id="btn-pdf" onclick="gerarPDF()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-5 rounded shadow flex-1">Imprimir / Salvar PDF</button>
+        <button type="button" onclick="gerarPDF()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-5 rounded shadow flex-1" id="btn-print">Imprimir / Salvar PDF</button>
     </div>
 </div>
 </main>
@@ -416,10 +416,8 @@ function validarDataCompleta(valor) {
 
 function atualizarStatus(mensagem, erro = false) {
     const el = document.getElementById("status-salvamento");
-    if (el) {
-        el.textContent = mensagem;
-        el.className = "status-salvamento " + (erro ? "text-red-600" : "text-gray-500");
-    }
+    el.textContent = mensagem;
+    el.className = "status-salvamento " + (erro ? "text-red-600" : "text-gray-500");
 }
 
 function obterCamposTexto() {
@@ -570,7 +568,6 @@ async function refinarComIA() {
 }
 
 async function gerarPDF() {
-    const botao = document.getElementById("btn-pdf");
     const supervisor = document.getElementById("supervisor");
     const dataInicio = document.getElementById("data_inicio").value.trim();
     const dataFim = document.getElementById("data_fim").value.trim();
@@ -601,14 +598,26 @@ async function gerarPDF() {
     }
 
     const texto = id => {
-        const el = document.getElementById(id);
-        return el ? el.value.trim() : "";
+        const campo = document.getElementById(id);
+        return campo ? campo.value.trim() : "";
     };
 
-    // Prepara os dados de exibição do PDF nativo
-    document.getElementById("print-descricao_acao").textContent = texto("descricao_acao") || "Não informado";
-    document.getElementById("print-evento").textContent = texto("evento") || "Não informado";
+    // Prepara os campos de texto para impressão
+    const camposTexto = [
+        ["descricao_acao", "print-descricao_acao"],
+        ["evento", "print-evento"],
+        ["aspectos_positivos", "print-aspectos_positivos"],
+        ["aspectos_melhoria", "print-aspectos_melhoria"]
+    ];
 
+    camposTexto.forEach(([origem, destino]) => {
+        const elemento = document.getElementById(destino);
+        if (elemento) {
+            elemento.textContent = texto(origem) || "Não informado";
+        }
+    });
+
+    // Prepara os campos de identificação para impressão
     const camposSelecao = [
         ["natureza_acao", "print-natureza_acao"],
         ["municipio_origem", "print-municipio_origem"],
@@ -617,57 +626,62 @@ async function gerarPDF() {
         ["data_fim", "print-data_fim"]
     ];
 
+    const relatorio = document.getElementById("relatorio-pdf");
+    const blocos = document.getElementById("blocos-avaliacao");
+
     camposSelecao.forEach(([origem, destino]) => {
-        const campo = document.getElementById(origem);
         let elemento = document.getElementById(destino);
 
-        if (!elemento && campo) {
+        if (!elemento) {
             elemento = document.createElement("div");
             elemento.id = destino;
-            elemento.className = "print-text pt-2 font-medium text-gray-800 text-base";
-            campo.parentNode.insertBefore(elemento, campo.nextSibling);
+            elemento.className = "print-text";
+            blocos.parentNode.insertBefore(elemento, blocos);
         }
 
-        if (campo && elemento) {
-            elemento.textContent = campo.tagName === "SELECT"
-                ? (campo.value ? campo.options[campo.selectedIndex].text : "Não informado")
-                : (campo.value.trim() || "Não informado");
+        const campo = document.getElementById(origem);
+
+        if (campo && campo.tagName === "SELECT") {
+            elemento.textContent = campo.value
+                ? campo.options[campo.selectedIndex].text
+                : "Não informado";
+        } else {
+            elemento.textContent = campo && campo.value.trim()
+                ? campo.value.trim()
+                : "Não informado";
         }
     });
 
-    const posFinal = texto("aspectos_positivos") || texto("aspectos_positivos_original");
-    const melFinal = texto("aspectos_melhoria") || texto("aspectos_melhoria_original");
-
-    document.getElementById("print-aspectos_positivos").textContent = posFinal || "Não informado";
-    document.getElementById("print-aspectos_melhoria").textContent = melFinal || "Não informado";
-
-    document.getElementById("data-relatorio").textContent = "Data de emissão: " + new Date().toLocaleDateString("pt-BR");
+    document.getElementById("data-relatorio").textContent =
+        "Data de emissão: " + new Date().toLocaleDateString("pt-BR");
 
     questionario.forEach((bloco, b) => {
-        bloco.itens.forEach((_, i) => atualizarSignificado(`q_${b}_${i}`));
+        bloco.itens.forEach((_, i) => {
+            atualizarSignificado(`q_${b}_${i}`);
+        });
     });
 
-    atualizarStatus("Gerando o PDF e enviando por e-mail...");
+    relatorio.querySelectorAll(".print-text").forEach(elemento => {
+        elemento.style.whiteSpace = "pre-wrap";
+        elemento.style.overflowWrap = "anywhere";
+    });
 
-    if (botao) {
-        botao.disabled = true;
-        botao.textContent = "Processando e enviando...";
-    }
+    atualizarStatus("Preparando documento para impressão e envio automático...");
 
+    // 1. IMPRESSÃO NATIVA (Conforme a sua estrutura correta anterior)
+    setTimeout(() => {
+        window.print();
+    }, 150);
+
+    // 2. GERAÇÃO BASE64 E ENVIO PARA E-MAIL (Em segundo plano)
     try {
-        // Lógica CORRIGIDA para o html2pdf.js
-        // Criação de cópia do relatório
-        const original = document.getElementById("relatorio-pdf");
-        const copia = original.cloneNode(true);
-
-        // Prepara a cópia
+        const copia = relatorio.cloneNode(true);
+        
         copia.querySelectorAll(".no-print, .screen-only, button").forEach(el => el.remove());
         copia.querySelectorAll("select, input, textarea").forEach(el => el.style.display = "none");
         
         copia.querySelectorAll(".print-text").forEach(el => {
             el.style.display = "block";
-            el.style.whiteSpace = "pre-wrap";
-            el.style.overflowWrap = "anywhere";
         });
         
         copia.querySelectorAll(".rating-description").forEach(el => el.style.display = "none");
@@ -675,50 +689,37 @@ async function gerarPDF() {
             el.classList.remove("hidden");
             el.style.display = "inline";
             el.style.visibility = "visible";
+            el.style.fontSize = "10pt";
         });
 
-        // Estilos para o PDF
-        copia.style.width = "210mm"; // Largura de página A4
+        copia.style.width = "210mm";
         copia.style.background = "#ffffff";
-        copia.style.color = "#222222";
+        copia.style.color = "#000000";
         copia.style.padding = "10mm";
         copia.style.fontFamily = "Arial, sans-serif";
 
-        // Mágica para não sair em branco: a cópia precisa estar visível (mas sob controle) na página.
-        // Trocamos o elemento original pela cópia apenas durante a captura.
-        original.style.display = "none";
-        original.parentNode.insertBefore(copia, original);
+        // Mágica para não dar tela branca no html2pdf
+        const containerFake = document.createElement("div");
+        containerFake.style.position = "absolute";
+        containerFake.style.top = "0";
+        containerFake.style.left = "0";
+        containerFake.style.zIndex = "-9999"; 
+        containerFake.appendChild(copia);
+        document.body.appendChild(containerFake);
 
         const nomeArquivo = "Supervisao_SENAR_" + new Date().toISOString().slice(0, 10) + ".pdf";
 
         const opcoesPDF = {
-            margin: [10, 10, 10, 10], 
+            margin: [10, 10, 10, 10],
             filename: nomeArquivo,
-            image: { type: "jpeg", quality: 0.98 },
-            html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
-            jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-            pagebreak: { mode: ["css", "legacy"] }
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 1.5, useCORS: true, backgroundColor: "#ffffff" },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
 
-        // Geração do Blob PDF (o ficheiro real)
-        const pdfBlob = await html2pdf().set(opcoesPDF).from(copia).outputPdf("blob");
+        const pdfBlob = await html2pdf().set(opcoesPDF).from(containerFake).outputPdf("blob");
         
-        // Remove a cópia e traz o original de volta
-        copia.remove();
-        original.style.display = "";
-
-        // Download local para o seu dispositivo
-        const urlPDF = URL.createObjectURL(pdfBlob);
-        const link = document.createElement("a");
-        link.href = urlPDF;
-        link.download = nomeArquivo;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        setTimeout(() => URL.revokeObjectURL(urlPDF), 60000);
-
-        // Envio por e-mail pelo Apps Script
-        const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbxpv9LL1nViEIHZqZ2VsDimezb1mYuQZrFSm6rV4zJkLK-_ZWciMOsx3DlKcluYwuGvCw/exec";
+        document.body.removeChild(containerFake);
 
         const base64 = await new Promise((resolve, reject) => {
             const leitor = new FileReader();
@@ -727,6 +728,8 @@ async function gerarPDF() {
             leitor.readAsDataURL(pdfBlob);
         });
 
+        const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbxpv9LL1nViEIHZqZ2VsDimezb1mYuQZrFSm6rV4zJkLK-_ZWciMOsx3DlKcluYwuGvCw/exec";
+        
         await fetch(URL_APPS_SCRIPT, {
             method: "POST",
             mode: "no-cors",
@@ -735,27 +738,15 @@ async function gerarPDF() {
                 destinatario: supervisor.value,
                 nomeArquivo: nomeArquivo,
                 pdfBase64: base64,
-                natureza: document.getElementById("natureza_acao").value || "Geral",
-                evento: texto("evento") || "Supervisão"
+                natureza: document.getElementById("natureza_acao").value || "Não informada",
+                evento: texto("evento") || "Não informado"
             })
         });
 
-        atualizarStatus("PDF descarregado e e-mail enviado ao supervisor com sucesso!");
-        alert("Sucesso! O PDF foi transferido para o seu dispositivo e o e-mail foi enviado para " + supervisor.options[supervisor.selectedIndex].text + ".");
+        console.log("E-mail disparado para o Apps Script com sucesso!");
 
     } catch (erro) {
-        console.error("Erro no processo de PDF/Email:", erro);
-        // Garantir que a interface volte ao normal se ocorrer um erro durante o PDF
-        const original = document.getElementById("relatorio-pdf");
-        if (original.style.display === "none") original.style.display = "";
-        
-        atualizarStatus("Erro ao gerar PDF ou enviar e-mail.", true);
-        alert("Ocorreu um erro: " + (erro.message || erro));
-    } finally {
-        if (botao) {
-            botao.disabled = false;
-            botao.textContent = "Imprimir / Salvar PDF";
-        }
+        console.error("Erro no envio em segundo plano:", erro);
     }
 }
 
@@ -764,10 +755,8 @@ function iniciarAplicacao() {
     preencherMunicipios();
     configurarDatas();
 
-    const dataRel = document.getElementById("data-relatorio");
-    if (dataRel) {
-        dataRel.textContent = "Data de emissão: " + new Date().toLocaleDateString("pt-BR");
-    }
+    document.getElementById("data-relatorio").textContent =
+        "Data de emissão: " + new Date().toLocaleDateString("pt-BR");
 
     obterCamposTexto().forEach(id => {
         const campo = document.getElementById(id);
