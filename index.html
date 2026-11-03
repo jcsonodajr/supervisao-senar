@@ -156,7 +156,7 @@ if ("serviceWorker" in navigator) {
         <textarea id="descricao_acao" name="descricao_acao"
             class="w-full border rounded p-3"
             placeholder="Descreva a ação realizada..."></textarea>
-        <div id="print-descricao_acao" class="print-text pt-2 font-medium text-gray-800 text-base"></div>
+        <div id="print-descricao_acao" class="print-text"></div>
     </div>
 
     <div>
@@ -166,7 +166,7 @@ if ("serviceWorker" in navigator) {
         <input id="evento" name="evento" type="text"
             class="w-full border rounded p-3"
             placeholder="Informe o evento">
-        <div id="print-evento" class="print-text pt-2 font-medium text-gray-800 text-base"></div>
+        <div id="print-evento" class="print-text"></div>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -600,22 +600,14 @@ async function gerarPDF() {
         }
     }
 
-    if (typeof html2pdf === "undefined") {
-        alert("A biblioteca de geração de PDF não foi carregada. Verifique sua conexão com a internet.");
-        return;
-    }
-
     const texto = id => {
         const el = document.getElementById(id);
         return el ? el.value.trim() : "";
     };
 
-    // Preenche textos de impressão
-    const descEl = document.getElementById("print-descricao_acao");
-    if (descEl) descEl.textContent = texto("descricao_acao") || "Não informado";
-
-    const evEl = document.getElementById("print-evento");
-    if (evEl) evEl.textContent = texto("evento") || "Não informado";
+    // Prepara os dados de exibição do PDF nativo
+    document.getElementById("print-descricao_acao").textContent = texto("descricao_acao") || "Não informado";
+    document.getElementById("print-evento").textContent = texto("evento") || "Não informado";
 
     const camposSelecao = [
         ["natureza_acao", "print-natureza_acao"],
@@ -646,16 +638,10 @@ async function gerarPDF() {
     const posFinal = texto("aspectos_positivos") || texto("aspectos_positivos_original");
     const melFinal = texto("aspectos_melhoria") || texto("aspectos_melhoria_original");
 
-    const posEl = document.getElementById("print-aspectos_positivos");
-    if (posEl) posEl.textContent = posFinal || "Não informado";
+    document.getElementById("print-aspectos_positivos").textContent = posFinal || "Não informado";
+    document.getElementById("print-aspectos_melhoria").textContent = melFinal || "Não informado";
 
-    const melEl = document.getElementById("print-aspectos_melhoria");
-    if (melEl) melEl.textContent = melFinal || "Não informado";
-
-    const dataRel = document.getElementById("data-relatorio");
-    if (dataRel) {
-        dataRel.textContent = "Data de emissão: " + new Date().toLocaleDateString("pt-BR");
-    }
+    document.getElementById("data-relatorio").textContent = "Data de emissão: " + new Date().toLocaleDateString("pt-BR");
 
     questionario.forEach((bloco, b) => {
         bloco.itens.forEach((_, i) => atualizarSignificado(`q_${b}_${i}`));
@@ -669,10 +655,12 @@ async function gerarPDF() {
     }
 
     try {
+        // Lógica CORRIGIDA para o html2pdf.js
+        // Criação de cópia do relatório
         const original = document.getElementById("relatorio-pdf");
         const copia = original.cloneNode(true);
 
-        // Prepara a cópia para a geração do PDF
+        // Prepara a cópia
         copia.querySelectorAll(".no-print, .screen-only, button").forEach(el => el.remove());
         copia.querySelectorAll("select, input, textarea").forEach(el => el.style.display = "none");
         
@@ -689,37 +677,37 @@ async function gerarPDF() {
             el.style.visibility = "visible";
         });
 
-        copia.style.width = "210mm";
+        // Estilos para o PDF
+        copia.style.width = "210mm"; // Largura de página A4
         copia.style.background = "#ffffff";
         copia.style.color = "#222222";
         copia.style.padding = "10mm";
         copia.style.fontFamily = "Arial, sans-serif";
 
-        // Cria um container invisível para que o html2pdf consiga capturar o conteúdo
-        const containerFake = document.createElement("div");
-        containerFake.style.position = "absolute";
-        containerFake.style.left = "-9999px";
-        containerFake.style.top = "0";
-        containerFake.appendChild(copia);
-        document.body.appendChild(containerFake);
+        // Mágica para não sair em branco: a cópia precisa estar visível (mas sob controle) na página.
+        // Trocamos o elemento original pela cópia apenas durante a captura.
+        original.style.display = "none";
+        original.parentNode.insertBefore(copia, original);
 
         const nomeArquivo = "Supervisao_SENAR_" + new Date().toISOString().slice(0, 10) + ".pdf";
 
         const opcoesPDF = {
-            margin: [5, 5, 5, 5],
+            margin: [10, 10, 10, 10], 
             filename: nomeArquivo,
             image: { type: "jpeg", quality: 0.98 },
-            html2canvas: { scale: 1.5, useCORS: true, backgroundColor: "#ffffff" },
+            html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
             jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
             pagebreak: { mode: ["css", "legacy"] }
         };
 
+        // Geração do Blob PDF (o ficheiro real)
         const pdfBlob = await html2pdf().set(opcoesPDF).from(copia).outputPdf("blob");
         
-        // Remove o container falso do corpo do documento
-        document.body.removeChild(containerFake);
+        // Remove a cópia e traz o original de volta
+        copia.remove();
+        original.style.display = "";
 
-        // 1. Download do PDF para o usuário
+        // Download local para o seu dispositivo
         const urlPDF = URL.createObjectURL(pdfBlob);
         const link = document.createElement("a");
         link.href = urlPDF;
@@ -729,7 +717,7 @@ async function gerarPDF() {
         link.remove();
         setTimeout(() => URL.revokeObjectURL(urlPDF), 60000);
 
-        // 2. Disparo via e-mail
+        // Envio por e-mail pelo Apps Script
         const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbxpv9LL1nViEIHZqZ2VsDimezb1mYuQZrFSm6rV4zJkLK-_ZWciMOsx3DlKcluYwuGvCw/exec";
 
         const base64 = await new Promise((resolve, reject) => {
@@ -757,6 +745,10 @@ async function gerarPDF() {
 
     } catch (erro) {
         console.error("Erro no processo de PDF/Email:", erro);
+        // Garantir que a interface volte ao normal se ocorrer um erro durante o PDF
+        const original = document.getElementById("relatorio-pdf");
+        if (original.style.display === "none") original.style.display = "";
+        
         atualizarStatus("Erro ao gerar PDF ou enviar e-mail.", true);
         alert("Ocorreu um erro: " + (erro.message || erro));
     } finally {
