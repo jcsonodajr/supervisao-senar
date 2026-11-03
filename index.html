@@ -302,7 +302,7 @@ const questionario = [
         "Demonstrou segurança em seus posicionamentos.",
         "Utilizou a linguagem escrita e oral corretamente.",
         "Foi claro e objetivo na exposição dos assuntos.",
-        "Abordou questões relacionadas à saúde e segurança do trabalhador e//ou aspectos sobre meio ambiente, cidadania, qualidade e produtividade, sempre que pertinentes.",
+        "Abordou questões relacionadas à saúde e segurança do trabalhador e/ou aspectos sobre meio ambiente, cidadania, qualidade e produtividade, sempre que pertinentes.",
         "Decodificou os termos técnicos, quando utilizados.",
         "Evidenciou a aplicabilidade prática do conteúdo ministrado."
     ]},
@@ -567,7 +567,7 @@ async function refinarComIA() {
     }
 }
 
-function gerarPDF() {
+async function gerarPDF() {
     const dataInicio = document.getElementById("data_inicio").value.trim();
     const dataFim = document.getElementById("data_fim").value.trim();
 
@@ -610,6 +610,7 @@ function gerarPDF() {
         ["data_fim", "print-data_fim"]
     ];
 
+    camposSelecao.files = []; // limpeza preventiva
     camposSelecao.forEach(([origem, destino]) => {
         const campo = document.getElementById(origem);
         let elemento = document.getElementById(destino);
