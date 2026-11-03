@@ -271,7 +271,7 @@ if ("serviceWorker" in navigator) {
     <p id="status-salvamento" class="status-salvamento text-gray-500" role="status" aria-live="polite">Preparando o formulário...</p>
     <div class="flex flex-wrap gap-3">
         <button type="button" id="btn-ia" onclick="refinarComIA()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-5 rounded shadow flex-1">Refinar textos com IA</button>
-        <button type="button" onclick="gerarPDF()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-5 rounded shadow flex-1" id="btn-print">Imprimir / Salvar PDF</button>
+        <button type="button" onclick="gerarPDF()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-5 rounded shadow flex-1">Imprimir / Salvar PDF</button>
     </div>
 </div>
 </main>
@@ -416,8 +416,10 @@ function validarDataCompleta(valor) {
 
 function atualizarStatus(mensagem, erro = false) {
     const el = document.getElementById("status-salvamento");
-    el.textContent = mensagem;
-    el.className = "status-salvamento " + (erro ? "text-red-600" : "text-gray-500");
+    if (el) {
+        el.textContent = mensagem;
+        el.className = "status-salvamento " + (erro ? "text-red-600" : "text-gray-500");
+    }
 }
 
 function obterCamposTexto() {
@@ -514,7 +516,6 @@ async function refinarComIA() {
     const campoMelhoriaOriginal = document.getElementById("aspectos_melhoria_original");
     const campoPositivoFinal = document.getElementById("aspectos_positivos");
     const campoMelhoriaFinal = document.getElementById("aspectos_melhoria");
-    const botao = document.getElementById("btn-ia");
 
     const rascunho = campoRascunho.value.trim();
     const positivos = campoPositivoOriginal.value.trim() || campoPositivoFinal.value.trim();
@@ -524,11 +525,7 @@ async function refinarComIA() {
         alert("Preencha o rascunho ou pelo menos um dos textos antes de solicitar o refinamento.");
         return;
     }
-    if (botao.disabled) return;
 
-    const rotuloOriginal = botao.textContent;
-    botao.disabled = true;
-    botao.textContent = "Refinando textos...";
     atualizarStatus("Enviando textos para refinamento com IA...");
 
     try {
@@ -561,9 +558,6 @@ async function refinarComIA() {
         console.error("Erro ao refinar com IA:", erro);
         atualizarStatus("Não foi possível refinar os textos com IA.", true);
         alert("Falha no refinamento.\n\nDetalhe: " + (erro.message || "Erro de comunicação"));
-    } finally {
-        botao.disabled = false;
-        botao.textContent = rotuloOriginal;
     }
 }
 
@@ -598,11 +592,11 @@ async function gerarPDF() {
     }
 
     const texto = id => {
-        const campo = document.getElementById(id);
-        return campo ? campo.value.trim() : "";
+        const el = document.getElementById(id);
+        return el ? el.value.trim() : "";
     };
 
-    // Prepara os campos de texto para impressão
+    // Prepara os campos para a tela de impressão
     const camposTexto = [
         ["descricao_acao", "print-descricao_acao"],
         ["evento", "print-evento"],
@@ -617,7 +611,6 @@ async function gerarPDF() {
         }
     });
 
-    // Prepara os campos de identificação para impressão
     const camposSelecao = [
         ["natureza_acao", "print-natureza_acao"],
         ["municipio_origem", "print-municipio_origem"],
@@ -626,11 +619,11 @@ async function gerarPDF() {
         ["data_fim", "print-data_fim"]
     ];
 
-    const relatorio = document.getElementById("relatorio-pdf");
     const blocos = document.getElementById("blocos-avaliacao");
 
     camposSelecao.forEach(([origem, destino]) => {
         let elemento = document.getElementById(destino);
+        const campo = document.getElementById(origem);
 
         if (!elemento) {
             elemento = document.createElement("div");
@@ -639,16 +632,10 @@ async function gerarPDF() {
             blocos.parentNode.insertBefore(elemento, blocos);
         }
 
-        const campo = document.getElementById(origem);
-
-        if (campo && campo.tagName === "SELECT") {
-            elemento.textContent = campo.value
-                ? campo.options[campo.selectedIndex].text
-                : "Não informado";
-        } else {
-            elemento.textContent = campo && campo.value.trim()
-                ? campo.value.trim()
-                : "Não informado";
+        if (campo && elemento) {
+            elemento.textContent = campo.tagName === "SELECT"
+                ? (campo.value ? campo.options[campo.selectedIndex].text : "Não informado")
+                : (campo.value.trim() || "Não informado");
         }
     });
 
@@ -656,98 +643,102 @@ async function gerarPDF() {
         "Data de emissão: " + new Date().toLocaleDateString("pt-BR");
 
     questionario.forEach((bloco, b) => {
-        bloco.itens.forEach((_, i) => {
-            atualizarSignificado(`q_${b}_${i}`);
-        });
+        bloco.itens.forEach((_, i) => atualizarSignificado(`q_${b}_${i}`));
     });
 
+    const relatorio = document.getElementById("relatorio-pdf");
     relatorio.querySelectorAll(".print-text").forEach(elemento => {
         elemento.style.whiteSpace = "pre-wrap";
         elemento.style.overflowWrap = "anywhere";
     });
 
-    atualizarStatus("Preparando documento para impressão e envio automático...");
+    atualizarStatus("Abrindo a janela de impressão...");
+    
+    // Passo 1: IMPRESSÃO NATIVA PERFEITA (Impede os problemas de layout e folha em branco)
+    window.print();
 
-    // 1. IMPRESSÃO NATIVA (Conforme a sua estrutura correta anterior)
-    setTimeout(() => {
-        window.print();
-    }, 150);
-
-    // 2. GERAÇÃO BASE64 E ENVIO PARA E-MAIL (Em segundo plano)
-    try {
-        const copia = relatorio.cloneNode(true);
+    // Passo 2: GERAÇÃO E ENVIO DO PDF POR E-MAIL (Em segundo plano, logo após a impressão)
+    setTimeout(async () => {
+        atualizarStatus("Gerando arquivo para envio automático ao supervisor...");
         
-        copia.querySelectorAll(".no-print, .screen-only, button").forEach(el => el.remove());
-        copia.querySelectorAll("select, input, textarea").forEach(el => el.style.display = "none");
-        
-        copia.querySelectorAll(".print-text").forEach(el => {
-            el.style.display = "block";
-        });
-        
-        copia.querySelectorAll(".rating-description").forEach(el => el.style.display = "none");
-        copia.querySelectorAll(".rating-text").forEach(el => {
-            el.classList.remove("hidden");
-            el.style.display = "inline";
-            el.style.visibility = "visible";
-            el.style.fontSize = "10pt";
-        });
+        try {
+            const copia = relatorio.cloneNode(true);
+            
+            copia.querySelectorAll(".no-print, .screen-only, button").forEach(el => el.remove());
+            copia.querySelectorAll("select, input, textarea").forEach(el => el.style.display = "none");
+            
+            copia.querySelectorAll(".print-text").forEach(el => {
+                el.style.display = "block";
+            });
+            
+            copia.querySelectorAll(".rating-description").forEach(el => el.style.display = "none");
+            copia.querySelectorAll(".rating-text").forEach(el => {
+                el.classList.remove("hidden");
+                el.style.display = "inline";
+                el.style.visibility = "visible";
+                el.style.fontSize = "10pt";
+            });
 
-        copia.style.width = "210mm";
-        copia.style.background = "#ffffff";
-        copia.style.color = "#000000";
-        copia.style.padding = "10mm";
-        copia.style.fontFamily = "Arial, sans-serif";
+            copia.style.width = "210mm";
+            copia.style.background = "#ffffff";
+            copia.style.color = "#000000";
+            copia.style.padding = "10mm";
+            copia.style.fontFamily = "Arial, sans-serif";
 
-        // Mágica para não dar tela branca no html2pdf
-        const containerFake = document.createElement("div");
-        containerFake.style.position = "absolute";
-        containerFake.style.top = "0";
-        containerFake.style.left = "0";
-        containerFake.style.zIndex = "-9999"; 
-        containerFake.appendChild(copia);
-        document.body.appendChild(containerFake);
+            const containerFake = document.createElement("div");
+            containerFake.style.position = "absolute";
+            containerFake.style.top = "0";
+            containerFake.style.left = "-9999px";
+            containerFake.style.zIndex = "-9999"; 
+            containerFake.appendChild(copia);
+            document.body.appendChild(containerFake);
 
-        const nomeArquivo = "Supervisao_SENAR_" + new Date().toISOString().slice(0, 10) + ".pdf";
+            const nomeArquivo = "Supervisao_SENAR_" + new Date().toISOString().slice(0, 10) + ".pdf";
 
-        const opcoesPDF = {
-            margin: [10, 10, 10, 10],
-            filename: nomeArquivo,
-            image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 1.5, useCORS: true, backgroundColor: "#ffffff" },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
+            const opcoesPDF = {
+                margin: [10, 10, 10, 10],
+                filename: nomeArquivo,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 1.5, useCORS: true, backgroundColor: "#ffffff" },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
 
-        const pdfBlob = await html2pdf().set(opcoesPDF).from(containerFake).outputPdf("blob");
-        
-        document.body.removeChild(containerFake);
+            const pdfBlob = await html2pdf().set(opcoesPDF).from(containerFake).outputPdf("blob");
+            document.body.removeChild(containerFake);
 
-        const base64 = await new Promise((resolve, reject) => {
-            const leitor = new FileReader();
-            leitor.onload = () => resolve(String(leitor.result).split(",")[1]);
-            leitor.onerror = reject;
-            leitor.readAsDataURL(pdfBlob);
-        });
+            const base64 = await new Promise((resolve, reject) => {
+                const leitor = new FileReader();
+                leitor.onload = () => resolve(String(leitor.result).split(",")[1]);
+                leitor.onerror = reject;
+                leitor.readAsDataURL(pdfBlob);
+            });
 
-        const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbxpv9LL1nViEIHZqZ2VsDimezb1mYuQZrFSm6rV4zJkLK-_ZWciMOsx3DlKcluYwuGvCw/exec";
-        
-        await fetch(URL_APPS_SCRIPT, {
-            method: "POST",
-            mode: "no-cors",
-            headers: { "Content-Type": "text/plain;charset=utf-8" },
-            body: JSON.stringify({
-                destinatario: supervisor.value,
-                nomeArquivo: nomeArquivo,
-                pdfBase64: base64,
-                natureza: document.getElementById("natureza_acao").value || "Não informada",
-                evento: texto("evento") || "Não informado"
-            })
-        });
+            const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbxpv9LL1nViEIHZqZ2VsDimezb1mYuQZrFSm6rV4zJkLK-_ZWciMOsx3DlKcluYwuGvCw/exec";
+            
+            fetch(URL_APPS_SCRIPT, {
+                method: "POST",
+                mode: "no-cors",
+                headers: { "Content-Type": "text/plain;charset=utf-8" },
+                body: JSON.stringify({
+                    destinatario: supervisor.value,
+                    nomeArquivo: nomeArquivo,
+                    pdfBase64: base64,
+                    natureza: document.getElementById("natureza_acao").value || "Não informada",
+                    evento: texto("evento") || "Não informado"
+                })
+            });
 
-        console.log("E-mail disparado para o Apps Script com sucesso!");
+            atualizarStatus("Relatório salvo e e-mail enviado ao supervisor com sucesso!");
+            
+            setTimeout(() => {
+                alert("O relatório foi impresso e uma cópia em PDF foi enviada em anexo para " + supervisor.options[supervisor.selectedIndex].text);
+            }, 500);
 
-    } catch (erro) {
-        console.error("Erro no envio em segundo plano:", erro);
-    }
+        } catch (erro) {
+            console.error("Erro no envio em segundo plano:", erro);
+            atualizarStatus("Erro ao enviar o e-mail automático.", true);
+        }
+    }, 500);
 }
 
 function iniciarAplicacao() {
