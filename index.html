@@ -416,8 +416,10 @@ function validarDataCompleta(valor) {
 
 function atualizarStatus(mensagem, erro = false) {
     const el = document.getElementById("status-salvamento");
-    el.textContent = mensagem;
-    el.className = "status-salvamento " + (erro ? "text-red-600" : "text-gray-500");
+    if (el) {
+        el.textContent = mensagem;
+        el.className = "status-salvamento " + (erro ? "text-red-600" : "text-gray-500");
+    }
 }
 
 function obterCamposTexto() {
@@ -568,8 +570,14 @@ async function refinarComIA() {
 }
 
 async function gerarPDF() {
+    const supervisor = document.getElementById("supervisor");
     const dataInicio = document.getElementById("data_inicio").value.trim();
     const dataFim = document.getElementById("data_fim").value.trim();
+
+    if (!supervisor || !supervisor.value) {
+        alert("Selecione o supervisor que receberá o relatório.");
+        return;
+    }
 
     if (dataInicio && !validarDataCompleta(dataInicio)) {
         alert("Informe uma data inicial válida no formato DD/MM/AAAA.");
@@ -610,7 +618,6 @@ async function gerarPDF() {
         ["data_fim", "print-data_fim"]
     ];
 
-    camposSelecao.files = []; // limpeza preventiva
     camposSelecao.forEach(([origem, destino]) => {
         const campo = document.getElementById(origem);
         let elemento = document.getElementById(destino);
@@ -645,11 +652,97 @@ async function gerarPDF() {
         bloco.itens.forEach((_, i) => atualizarSignificado(`q_${b}_${i}`));
     });
 
-    atualizarStatus("Abrindo janela de impressão / Salvar como PDF...");
+    atualizarStatus("Gerando o PDF e enviando por e-mail...");
 
-    setTimeout(() => {
-        window.print();
-    }, 150);
+    const botao = document.querySelector('button[onclick="gerarPDF()"]');
+    if (botao) {
+        botao.disabled = true;
+        botao.textContent = "Processando e enviando...";
+    }
+
+    try {
+        const original = document.getElementById("relatorio-pdf");
+        const copia = original.cloneNode(true);
+
+        copia.querySelectorAll(".no-print, .screen-only, button").forEach(el => el.remove());
+        copia.querySelectorAll("select, input, textarea").forEach(el => el.style.display = "none");
+        copia.querySelectorAll(".print-text").forEach(el => {
+            el.style.display = "block";
+            el.style.whiteSpace = "pre-wrap";
+            el.style.overflowWrap = "anywhere";
+        });
+        copia.querySelectorAll(".rating-description").forEach(el => el.style.display = "none");
+        copia.querySelectorAll(".rating-text").forEach(el => {
+            el.classList.remove("hidden");
+            el.style.display = "inline";
+            el.style.visibility = "visible";
+        });
+
+        copia.style.width = "210mm";
+        copia.style.background = "#ffffff";
+        copia.style.color = "#222222";
+        copia.style.padding = "10mm";
+        copia.style.fontFamily = "Arial, sans-serif";
+
+        const nomeArquivo = "Supervisao_SENAR_" + new Date().toISOString().slice(0, 10) + ".pdf";
+
+        const opcoesPDF = {
+            margin: [5, 5, 5, 5],
+            filename: nomeArquivo,
+            image: { type: "jpeg", quality: 0.98 },
+            html2canvas: { scale: 1.5, useCORS: true, backgroundColor: "#ffffff" },
+            jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+            pagebreak: { mode: ["css", "legacy"] }
+        };
+
+        const pdfBlob = await html2pdf().set(opcoesPDF).from(copia).outputPdf("blob");
+
+        // Download local para o usuário ter o PDF imediatamente
+        const urlPDF = URL.createObjectURL(pdfBlob);
+        const link = document.createElement("a");
+        link.href = urlPDF;
+        link.download = nomeArquivo;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(urlPDF), 60000);
+
+        // Envio automático para o Apps Script
+        const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbzgS38dKI6MqwzPoeAbKrQWZRIScCBZ_M2VShYlTSSlok0CvH8uh_fjhH2at3uRP2ER-Q/exec";
+
+        const base64 = await new Promise((resolve, reject) => {
+            const leitor = new FileReader();
+            leitor.onload = () => resolve(String(leitor.result).split(",")[1]);
+            leitor.onerror = reject;
+            leitor.readAsDataURL(pdfBlob);
+        });
+
+        await fetch(URL_APPS_SCRIPT, {
+            method: "POST",
+            mode: "no-cors",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify({
+                destinatario: supervisor.value,
+                nomeArquivo: nomeArquivo,
+                pdfBase64: base64,
+                natureza: document.getElementById("natureza_acao").value || "Geral",
+                evento: texto("evento") || "Supervisão"
+            })
+        });
+
+        atualizarStatus("PDF gerado, baixado e e-mail enviado ao supervisor!");
+        alert("Sucesso! O PDF foi baixado no seu dispositivo e o e-mail foi disparado para " + supervisor.value);
+
+    } catch (erro) {
+        console.error("Erro no processo de PDF/Email:", erro);
+        atualizarStatus("Erro ao gerar PDF ou enviar e-mail.", true);
+        alert("Ocorreu um erro: " + (erro.message || erro));
+    } finally {
+        if (botao) {
+            botao.disabled = false;
+            botao.textContent = "Imprimir / Salvar PDF";
+        }
+    }
 }
 
 function iniciarAplicacao() {
