@@ -28,44 +28,6 @@ textarea { resize: vertical; min-height: 100px; }
     display: block;
 }
 
-/* Estilos aplicados APENAS enquanto o html2pdf estiver gerando o arquivo */
-.gerando-pdf .no-print, 
-.gerando-pdf .screen-only, 
-.gerando-pdf textarea, 
-.gerando-pdf input, 
-.gerando-pdf select, 
-.gerando-pdf button { 
-    display: none !important; 
-}
-.gerando-pdf #relatorio-pdf { 
-    width: 100% !important; 
-    max-width: none !important; 
-    margin: 0 !important; 
-    padding: 10px !important; 
-}
-.gerando-pdf .print-text, 
-.gerando-pdf .campo-impressao { 
-    display: block !important; 
-    white-space: pre-wrap;
-    overflow-wrap: anywhere; 
-    line-height: 1.45;
-}
-.gerando-pdf .rating-select, 
-.gerando-pdf .rating-description { 
-    display: none !important; 
-}
-.gerando-pdf .rating-row { 
-    display: flex !important; 
-    align-items: flex-start !important; 
-    gap: 8px !important; 
-}
-.gerando-pdf .rating-text { 
-    display: inline !important; 
-    visibility: visible !important; 
-    color: #222 !important; 
-    font-size: 9pt !important; 
-}
-
 @media print {
     @page { size: A4; margin: 14mm; }
     body { background: white !important; padding: 0 !important; color: #222 !important; font: 10pt Arial, sans-serif; }
@@ -309,7 +271,8 @@ if ("serviceWorker" in navigator) {
     <p id="status-salvamento" class="status-salvamento text-gray-500" role="status" aria-live="polite">Preparando o formulário...</p>
     <div class="flex flex-wrap gap-3">
         <button type="button" id="btn-ia" onclick="refinarComIA()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-5 rounded shadow flex-1">Refinar textos com IA</button>
-        <button type="button" onclick="gerarPDF()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-5 rounded shadow flex-1">Enviar / Gerar PDF</button>
+        <button type="button" onclick="gerarPDF()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-5 rounded shadow flex-1">Imprimir / Salvar PDF</button>
+        <button type="button" id="btn-email" onclick="enviarPorEmail()" class="bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-5 rounded shadow flex-1">Enviar PDF por e-mail</button>
     </div>
 </div>
 </main>
@@ -605,24 +568,18 @@ async function refinarComIA() {
     }
 }
 
-async function gerarPDF() {
-    const supervisor = document.getElementById("supervisor");
-    if (!supervisor.value) {
-        alert("Por favor, selecione o supervisor no topo da página antes de enviar.");
-        return;
-    }
-
+function validarDatas() {
     const dataInicio = document.getElementById("data_inicio").value.trim();
     const dataFim = document.getElementById("data_fim").value.trim();
 
     if (dataInicio && !validarDataCompleta(dataInicio)) {
         alert("Informe uma data inicial válida no formato DD/MM/AAAA.");
-        return;
+        return false;
     }
 
     if (dataFim && !validarDataCompleta(dataFim)) {
         alert("Informe uma data final válida no formato DD/MM/AAAA.");
-        return;
+        return false;
     }
 
     if (dataInicio && dataFim) {
@@ -631,17 +588,189 @@ async function gerarPDF() {
 
         if (new Date(af, mf - 1, df) < new Date(ai, mi - 1, di)) {
             alert("A data final não pode ser anterior à data inicial.");
-            return;
+            return false;
         }
     }
+    return true;
+}
+
+/* ===================== ENVIO POR E-MAIL ===================== */
+
+const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbxpv9LL1nViEIHZqZ2VsDimezb1mYuQZrFSm6rV4zJkLK-_ZWciMOsx3DlKcluYwuGvCw/exec";
+
+function escaparHTML(valor) {
+    return String(valor ?? "").replace(/[&<>"']/g, c => (
+        { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]
+    ));
+}
+
+function valorTexto(id) {
+    const el = document.getElementById(id);
+    return el ? el.value.trim() : "";
+}
+
+function valorSelect(id) {
+    const el = document.getElementById(id);
+    return el && el.value ? el.options[el.selectedIndex].text : "";
+}
+
+/*
+ * Monta o relatório do zero, com estilos INLINE, a partir dos dados do formulário.
+ * Motivo: o layout de impressão usa @media print (que o html2pdf não aplica) e
+ * esconde textareas/selects, o que fazia o PDF sair em branco.
+ * Aqui o conteúdo é sempre texto puro, visível e independente do Tailwind.
+ */
+function montarRelatorioPDF() {
+    const campo = (rotulo, valor) => `
+        <div style="margin-bottom:8px;">
+            <div style="font-weight:bold;color:#14532d;font-size:11px;">${escaparHTML(rotulo)}</div>
+            <div style="white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.4;">${escaparHTML(valor || "Não informado")}</div>
+        </div>`;
+
+    const bloco = (titulo, texto, cor) => `
+        <div class="pdf-bloco" style="margin-top:14px;">
+            <div style="font-size:14px;font-weight:bold;color:${cor};border-bottom:1px solid ${cor};padding-bottom:3px;margin-bottom:6px;">${escaparHTML(titulo)}</div>
+            <div style="white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.5;">${escaparHTML(texto || "Não informado")}</div>
+        </div>`;
+
+    const inicio = valorTexto("data_inicio");
+    const fim = valorTexto("data_fim");
+    const periodo = inicio || fim ? `${inicio || "—"} a ${fim || "—"}` : "";
+
+    let questoes = "";
+    questionario.forEach((grupo, b) => {
+        questoes += `<div style="margin-top:14px;">
+            <div style="background:#e8f3e8;color:#14532d;font-weight:bold;font-size:13px;padding:6px 8px;border-radius:4px;margin-bottom:6px;">${escaparHTML(grupo.categoria)}</div>`;
+        grupo.itens.forEach((item, i) => {
+            const seletor = document.querySelector(`select[name="q_${b}_${i}"]`);
+            const escolhida = seletor ? escala.find(e => String(e.valor) === seletor.value) : null;
+            const resposta = escolhida ? `${escolhida.valor} — ${escolhida.label}` : "Não avaliado";
+            const destaque = escolhida && escolhida.valor <= 2 ? "color:#c2410c;font-weight:bold;" : "";
+            questoes += `<div class="pdf-question" style="padding:5px 0;border-bottom:1px solid #ddd;">
+                <div style="line-height:1.35;">${escaparHTML(item)}</div>
+                <div style="font-size:11px;margin-top:2px;${destaque}">${escaparHTML(resposta)}</div>
+            </div>`;
+        });
+        questoes += `</div>`;
+    });
+
+    const positivos = valorTexto("aspectos_positivos") || valorTexto("aspectos_positivos_original");
+    const melhorias = valorTexto("aspectos_melhoria") || valorTexto("aspectos_melhoria_original");
+
+    const raiz = document.createElement("div");
+    raiz.style.cssText = "background:#fff;color:#222;font-family:Arial,Helvetica,sans-serif;font-size:12px;";
+    raiz.innerHTML = `
+        <div style="border-bottom:2px solid #16a34a;padding-bottom:8px;margin-bottom:12px;">
+            <div style="font-size:22px;font-weight:bold;color:#15803d;">Supervisão de Instrutoria</div>
+            <div style="font-size:11px;color:#666;margin-top:2px;">Instrumento de Avaliação de Desempenho e Metodologia</div>
+            <div style="font-size:10px;color:#666;margin-top:4px;">Data de emissão: ${new Date().toLocaleDateString("pt-BR")}</div>
+        </div>
+
+        <div class="pdf-bloco" style="border:1px solid #ccc;border-radius:4px;padding:10px;">
+            <div style="font-size:14px;font-weight:bold;color:#15803d;margin-bottom:8px;">Identificação da ação</div>
+            ${campo("Natureza da ação", valorSelect("natureza_acao"))}
+            ${campo("Descrição da ação", valorTexto("descricao_acao"))}
+            ${campo("Evento", valorTexto("evento"))}
+            ${campo("Município de origem", valorSelect("municipio_origem"))}
+            ${campo("Município de destino", valorSelect("municipio_destino"))}
+            ${campo("Período da ação", periodo)}
+        </div>
+
+        ${questoes}
+        ${bloco("Aspectos positivos da instrutoria", positivos, "#15803d")}
+        ${bloco("Aspectos discutidos para melhoria do desempenho e sugestões", melhorias, "#c2410c")}
+    `;
+    return raiz;
+}
+
+function gerarPdfBlob(elemento) {
+    window.scrollTo(0, 0); // html2canvas sai em branco se a página estiver rolada
+    return html2pdf().set({
+        margin: [12, 10, 12, 10],
+        image: { type: "jpeg", quality: 0.92 },
+        html2canvas: { scale: 1.6, useCORS: true, backgroundColor: "#ffffff", scrollX: 0, scrollY: 0 },
+        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+        pagebreak: { mode: ["css", "legacy"], avoid: [".pdf-question", ".pdf-bloco"] }
+    }).from(elemento).outputPdf("blob");
+}
+
+function blobParaBase64(blob) {
+    return new Promise((resolve, reject) => {
+        const leitor = new FileReader();
+        leitor.onload = () => resolve(String(leitor.result).split(",")[1]);
+        leitor.onerror = reject;
+        leitor.readAsDataURL(blob);
+    });
+}
+
+async function enviarPorEmail() {
+    const supervisor = document.getElementById("supervisor");
+    const botao = document.getElementById("btn-email");
+
+    if (!supervisor.value) {
+        alert("Selecione o supervisor responsável pelo recebimento.");
+        supervisor.focus();
+        return;
+    }
+    if (!validarDatas()) return;
+    if (botao.disabled) return;
+
+    const rotuloOriginal = botao.textContent;
+    botao.disabled = true;
+    botao.textContent = "Enviando...";
+
+    try {
+        atualizarStatus("Gerando o PDF...");
+        const pdfBlob = await gerarPdfBlob(montarRelatorioPDF());
+        if (!pdfBlob || pdfBlob.size === 0) throw new Error("O PDF foi gerado vazio.");
+
+        const hoje = new Date().toISOString().slice(0, 10);
+        const eventoNome = valorTexto("evento").replace(/[^\p{L}\p{N}]+/gu, "_").replace(/^_+|_+$/g, "").slice(0, 40);
+        const nomeArquivo = `Supervisao_${eventoNome || "Instrutoria"}_${hoje}.pdf`;
+
+        atualizarStatus("Enviando o PDF por e-mail...");
+        const base64 = await blobParaBase64(pdfBlob);
+
+        await fetch(URL_APPS_SCRIPT, {
+            method: "POST",
+            mode: "no-cors",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify({
+                destinatario: supervisor.value,
+                nomeArquivo: nomeArquivo,
+                pdfBase64: base64,
+                natureza: document.getElementById("natureza_acao").value || "Geral",
+                evento: valorTexto("evento") || "Supervisão"
+            })
+        });
+
+        atualizarStatus("Solicitação de envio concluída para " + supervisor.value + ". Confirme o recebimento na caixa de entrada.");
+        alert("Relatório enviado para " + supervisor.value + ".");
+    } catch (erro) {
+        console.error("Erro ao enviar por e-mail:", erro);
+        atualizarStatus("Não foi possível enviar o relatório por e-mail.", true);
+        alert("Falha no envio.\n\nDetalhe: " + (erro.message || "Erro de comunicação"));
+    } finally {
+        botao.disabled = false;
+        botao.textContent = rotuloOriginal;
+    }
+}
+
+/* ===================== IMPRESSÃO / SALVAR PDF ===================== */
+
+function gerarPDF() {
+    if (!validarDatas()) return;
 
     const texto = id => {
         const el = document.getElementById(id);
         return el ? el.value.trim() : "";
     };
 
-    document.getElementById("print-descricao_acao").textContent = texto("descricao_acao") || "Não informado";
-    document.getElementById("print-evento").textContent = texto("evento") || "Não informado";
+    document.getElementById("print-descricao_acao").textContent =
+        texto("descricao_acao") || "Não informado";
+
+    document.getElementById("print-evento").textContent =
+        texto("evento") || "Não informado";
 
     const camposSelecao = [
         ["natureza_acao", "print-natureza_acao"],
@@ -672,66 +801,24 @@ async function gerarPDF() {
     const posFinal = texto("aspectos_positivos") || texto("aspectos_positivos_original");
     const melFinal = texto("aspectos_melhoria") || texto("aspectos_melhoria_original");
 
-    document.getElementById("print-aspectos_positivos").textContent = posFinal || "Não informado";
-    document.getElementById("print-aspectos_melhoria").textContent = melFinal || "Não informado";
-    document.getElementById("data-relatorio").textContent = "Data de emissão: " + new Date().toLocaleDateString("pt-BR");
+    document.getElementById("print-aspectos_positivos").textContent =
+        posFinal || "Não informado";
+
+    document.getElementById("print-aspectos_melhoria").textContent =
+        melFinal || "Não informado";
+
+    document.getElementById("data-relatorio").textContent =
+        "Data de emissão: " + new Date().toLocaleDateString("pt-BR");
 
     questionario.forEach((bloco, b) => {
         bloco.itens.forEach((_, i) => atualizarSignificado(`q_${b}_${i}`));
     });
 
-    atualizarStatus("Gerando arquivo PDF...");
-    document.body.classList.add("gerando-pdf");
-    const elementoRelatorio = document.getElementById("relatorio-pdf");
+    atualizarStatus("Abrindo janela de impressão / Salvar como PDF...");
 
-    try {
-        const opt = {
-            margin:       10,
-            filename:     'relatorio.pdf',
-            image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2 },
-            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
-
-        const pdfBlob = await html2pdf().set(opt).from(elementoRelatorio).output('blob');
-
-        atualizarStatus("Convertendo e enviando para o supervisor...");
-        
-        const base64 = await new Promise((resolve, reject) => {
-            const leitor = new FileReader();
-            leitor.onload = () => resolve(String(leitor.result).split(",")[1]);
-            leitor.onerror = reject;
-            leitor.readAsDataURL(pdfBlob);
-        });
-
-        const eventoStr = texto("evento").replace(/\s+/g, '_') || "Supervisao";
-        const nomeArquivo = `Relatorio_${eventoStr}.pdf`;
-        const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbxpv9LL1nViEIHZqZ2VsDimezb1mYuQZrFSm6rV4zJkLK-_ZWciMOsx3DlKcluYwuGvCw/exec";
-        
-        await fetch(URL_APPS_SCRIPT, {
-            method: "POST",
-            mode: "no-cors",
-            headers: { "Content-Type": "text/plain;charset=utf-8" },
-            body: JSON.stringify({
-                destinatario: supervisor.value,
-                nomeArquivo: nomeArquivo,
-                pdfBase64: base64,
-                natureza: document.getElementById("natureza_acao").value || "Geral",
-                evento: texto("evento") || "Supervisão"
-            })
-        });
-
-        atualizarStatus("Relatório enviado com sucesso para o e-mail!");
-        alert(`Sucesso! O relatório foi enviado para ${supervisor.options[supervisor.selectedIndex].text}.`);
-
-    } catch (erro) {
-        console.error("Erro ao enviar o PDF:", erro);
-        atualizarStatus("Falha ao enviar e-mail.", true);
-        alert("Ocorreu um erro no envio. Abrindo modo de impressão manual.");
+    setTimeout(() => {
         window.print();
-    } finally {
-        document.body.classList.remove("gerando-pdf");
-    }
+    }, 150);
 }
 
 function iniciarAplicacao() {
