@@ -28,6 +28,44 @@ textarea { resize: vertical; min-height: 100px; }
     display: block;
 }
 
+/* Estilos aplicados APENAS enquanto o html2pdf estiver gerando o arquivo */
+.gerando-pdf .no-print, 
+.gerando-pdf .screen-only, 
+.gerando-pdf textarea, 
+.gerando-pdf input, 
+.gerando-pdf select, 
+.gerando-pdf button { 
+    display: none !important; 
+}
+.gerando-pdf #relatorio-pdf { 
+    width: 100% !important; 
+    max-width: none !important; 
+    margin: 0 !important; 
+    padding: 10px !important; 
+}
+.gerando-pdf .print-text, 
+.gerando-pdf .campo-impressao { 
+    display: block !important; 
+    white-space: pre-wrap;
+    overflow-wrap: anywhere; 
+    line-height: 1.45;
+}
+.gerando-pdf .rating-select, 
+.gerando-pdf .rating-description { 
+    display: none !important; 
+}
+.gerando-pdf .rating-row { 
+    display: flex !important; 
+    align-items: flex-start !important; 
+    gap: 8px !important; 
+}
+.gerando-pdf .rating-text { 
+    display: inline !important; 
+    visibility: visible !important; 
+    color: #222 !important; 
+    font-size: 9pt !important; 
+}
+
 @media print {
     @page { size: A4; margin: 14mm; }
     body { background: white !important; padding: 0 !important; color: #222 !important; font: 10pt Arial, sans-serif; }
@@ -271,7 +309,7 @@ if ("serviceWorker" in navigator) {
     <p id="status-salvamento" class="status-salvamento text-gray-500" role="status" aria-live="polite">Preparando o formulário...</p>
     <div class="flex flex-wrap gap-3">
         <button type="button" id="btn-ia" onclick="refinarComIA()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-5 rounded shadow flex-1">Refinar textos com IA</button>
-        <button type="button" onclick="gerarPDF()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-5 rounded shadow flex-1">Imprimir / Salvar PDF</button>
+        <button type="button" onclick="gerarPDF()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-5 rounded shadow flex-1">Enviar / Gerar PDF</button>
     </div>
 </div>
 </main>
@@ -302,7 +340,7 @@ const questionario = [
         "Demonstrou segurança em seus posicionamentos.",
         "Utilizou a linguagem escrita e oral corretamente.",
         "Foi claro e objetivo na exposição dos assuntos.",
-        "Abordou questões relacionadas à saúde e segurança do trabalhador e/ou aspectos sobre meio ambiente, cidadania, qualidade e produtividade, sempre que pertinentes.",
+        "Abordou questões relacionadas à saúde e segurança do trabalhador e//ou aspectos sobre meio ambiente, cidadania, qualidade e produtividade, sempre que pertinentes.",
         "Decodificou os termos técnicos, quando utilizados.",
         "Evidenciou a aplicabilidade prática do conteúdo ministrado."
     ]},
@@ -416,10 +454,8 @@ function validarDataCompleta(valor) {
 
 function atualizarStatus(mensagem, erro = false) {
     const el = document.getElementById("status-salvamento");
-    if (el) {
-        el.textContent = mensagem;
-        el.className = "status-salvamento " + (erro ? "text-red-600" : "text-gray-500");
-    }
+    el.textContent = mensagem;
+    el.className = "status-salvamento " + (erro ? "text-red-600" : "text-gray-500");
 }
 
 function obterCamposTexto() {
@@ -516,6 +552,7 @@ async function refinarComIA() {
     const campoMelhoriaOriginal = document.getElementById("aspectos_melhoria_original");
     const campoPositivoFinal = document.getElementById("aspectos_positivos");
     const campoMelhoriaFinal = document.getElementById("aspectos_melhoria");
+    const botao = document.getElementById("btn-ia");
 
     const rascunho = campoRascunho.value.trim();
     const positivos = campoPositivoOriginal.value.trim() || campoPositivoFinal.value.trim();
@@ -525,7 +562,11 @@ async function refinarComIA() {
         alert("Preencha o rascunho ou pelo menos um dos textos antes de solicitar o refinamento.");
         return;
     }
+    if (botao.disabled) return;
 
+    const rotuloOriginal = botao.textContent;
+    botao.disabled = true;
+    botao.textContent = "Refinando textos...";
     atualizarStatus("Enviando textos para refinamento com IA...");
 
     try {
@@ -558,18 +599,21 @@ async function refinarComIA() {
         console.error("Erro ao refinar com IA:", erro);
         atualizarStatus("Não foi possível refinar os textos com IA.", true);
         alert("Falha no refinamento.\n\nDetalhe: " + (erro.message || "Erro de comunicação"));
+    } finally {
+        botao.disabled = false;
+        botao.textContent = rotuloOriginal;
     }
 }
 
 async function gerarPDF() {
     const supervisor = document.getElementById("supervisor");
-    const dataInicio = document.getElementById("data_inicio").value.trim();
-    const dataFim = document.getElementById("data_fim").value.trim();
-
-    if (!supervisor || !supervisor.value) {
-        alert("Selecione o supervisor que receberá o relatório.");
+    if (!supervisor.value) {
+        alert("Por favor, selecione o supervisor no topo da página antes de enviar.");
         return;
     }
+
+    const dataInicio = document.getElementById("data_inicio").value.trim();
+    const dataFim = document.getElementById("data_fim").value.trim();
 
     if (dataInicio && !validarDataCompleta(dataInicio)) {
         alert("Informe uma data inicial válida no formato DD/MM/AAAA.");
@@ -596,20 +640,8 @@ async function gerarPDF() {
         return el ? el.value.trim() : "";
     };
 
-    // Prepara os campos para a tela de impressão
-    const camposTexto = [
-        ["descricao_acao", "print-descricao_acao"],
-        ["evento", "print-evento"],
-        ["aspectos_positivos", "print-aspectos_positivos"],
-        ["aspectos_melhoria", "print-aspectos_melhoria"]
-    ];
-
-    camposTexto.forEach(([origem, destino]) => {
-        const elemento = document.getElementById(destino);
-        if (elemento) {
-            elemento.textContent = texto(origem) || "Não informado";
-        }
-    });
+    document.getElementById("print-descricao_acao").textContent = texto("descricao_acao") || "Não informado";
+    document.getElementById("print-evento").textContent = texto("evento") || "Não informado";
 
     const camposSelecao = [
         ["natureza_acao", "print-natureza_acao"],
@@ -619,17 +651,15 @@ async function gerarPDF() {
         ["data_fim", "print-data_fim"]
     ];
 
-    const blocos = document.getElementById("blocos-avaliacao");
-
     camposSelecao.forEach(([origem, destino]) => {
-        let elemento = document.getElementById(destino);
         const campo = document.getElementById(origem);
+        let elemento = document.getElementById(destino);
 
-        if (!elemento) {
+        if (!elemento && campo) {
             elemento = document.createElement("div");
             elemento.id = destino;
             elemento.className = "print-text";
-            blocos.parentNode.insertBefore(elemento, blocos);
+            campo.parentNode.insertBefore(elemento, campo.nextSibling);
         }
 
         if (campo && elemento) {
@@ -639,106 +669,69 @@ async function gerarPDF() {
         }
     });
 
-    document.getElementById("data-relatorio").textContent =
-        "Data de emissão: " + new Date().toLocaleDateString("pt-BR");
+    const posFinal = texto("aspectos_positivos") || texto("aspectos_positivos_original");
+    const melFinal = texto("aspectos_melhoria") || texto("aspectos_melhoria_original");
+
+    document.getElementById("print-aspectos_positivos").textContent = posFinal || "Não informado";
+    document.getElementById("print-aspectos_melhoria").textContent = melFinal || "Não informado";
+    document.getElementById("data-relatorio").textContent = "Data de emissão: " + new Date().toLocaleDateString("pt-BR");
 
     questionario.forEach((bloco, b) => {
         bloco.itens.forEach((_, i) => atualizarSignificado(`q_${b}_${i}`));
     });
 
-    const relatorio = document.getElementById("relatorio-pdf");
-    relatorio.querySelectorAll(".print-text").forEach(elemento => {
-        elemento.style.whiteSpace = "pre-wrap";
-        elemento.style.overflowWrap = "anywhere";
-    });
+    atualizarStatus("Gerando arquivo PDF...");
+    document.body.classList.add("gerando-pdf");
+    const elementoRelatorio = document.getElementById("relatorio-pdf");
 
-    atualizarStatus("Abrindo a janela de impressão...");
-    
-    // Passo 1: IMPRESSÃO NATIVA PERFEITA (Impede os problemas de layout e folha em branco)
-    window.print();
+    try {
+        const opt = {
+            margin:       10,
+            filename:     'relatorio.pdf',
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2 },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
 
-    // Passo 2: GERAÇÃO E ENVIO DO PDF POR E-MAIL (Em segundo plano, logo após a impressão)
-    setTimeout(async () => {
-        atualizarStatus("Gerando arquivo para envio automático ao supervisor...");
+        const pdfBlob = await html2pdf().set(opt).from(elementoRelatorio).output('blob');
+
+        atualizarStatus("Convertendo e enviando para o supervisor...");
         
-        try {
-            const copia = relatorio.cloneNode(true);
-            
-            copia.querySelectorAll(".no-print, .screen-only, button").forEach(el => el.remove());
-            copia.querySelectorAll("select, input, textarea").forEach(el => el.style.display = "none");
-            
-            copia.querySelectorAll(".print-text").forEach(el => {
-                el.style.display = "block";
-            });
-            
-            copia.querySelectorAll(".rating-description").forEach(el => el.style.display = "none");
-            copia.querySelectorAll(".rating-text").forEach(el => {
-                el.classList.remove("hidden");
-                el.style.display = "inline";
-                el.style.visibility = "visible";
-                el.style.fontSize = "10pt";
-            });
+        const base64 = await new Promise((resolve, reject) => {
+            const leitor = new FileReader();
+            leitor.onload = () => resolve(String(leitor.result).split(",")[1]);
+            leitor.onerror = reject;
+            leitor.readAsDataURL(pdfBlob);
+        });
 
-            copia.style.width = "210mm";
-            copia.style.background = "#ffffff";
-            copia.style.color = "#000000";
-            copia.style.padding = "10mm";
-            copia.style.fontFamily = "Arial, sans-serif";
+        const eventoStr = texto("evento").replace(/\s+/g, '_') || "Supervisao";
+        const nomeArquivo = `Relatorio_${eventoStr}.pdf`;
+        const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbxpv9LL1nViEIHZqZ2VsDimezb1mYuQZrFSm6rV4zJkLK-_ZWciMOsx3DlKcluYwuGvCw/exec";
+        
+        await fetch(URL_APPS_SCRIPT, {
+            method: "POST",
+            mode: "no-cors",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify({
+                destinatario: supervisor.value,
+                nomeArquivo: nomeArquivo,
+                pdfBase64: base64,
+                natureza: document.getElementById("natureza_acao").value || "Geral",
+                evento: texto("evento") || "Supervisão"
+            })
+        });
 
-            const containerFake = document.createElement("div");
-            containerFake.style.position = "absolute";
-            containerFake.style.top = "0";
-            containerFake.style.left = "-9999px";
-            containerFake.style.zIndex = "-9999"; 
-            containerFake.appendChild(copia);
-            document.body.appendChild(containerFake);
+        atualizarStatus("Relatório enviado com sucesso para o e-mail!");
+        alert(`Sucesso! O relatório foi enviado para ${supervisor.options[supervisor.selectedIndex].text}.`);
 
-            const nomeArquivo = "Supervisao_SENAR_" + new Date().toISOString().slice(0, 10) + ".pdf";
-
-            const opcoesPDF = {
-                margin: [10, 10, 10, 10],
-                filename: nomeArquivo,
-                image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 1.5, useCORS: true, backgroundColor: "#ffffff" },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            };
-
-            const pdfBlob = await html2pdf().set(opcoesPDF).from(containerFake).outputPdf("blob");
-            document.body.removeChild(containerFake);
-
-            const base64 = await new Promise((resolve, reject) => {
-                const leitor = new FileReader();
-                leitor.onload = () => resolve(String(leitor.result).split(",")[1]);
-                leitor.onerror = reject;
-                leitor.readAsDataURL(pdfBlob);
-            });
-
-            const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbxpv9LL1nViEIHZqZ2VsDimezb1mYuQZrFSm6rV4zJkLK-_ZWciMOsx3DlKcluYwuGvCw/exec";
-            
-            fetch(URL_APPS_SCRIPT, {
-                method: "POST",
-                mode: "no-cors",
-                headers: { "Content-Type": "text/plain;charset=utf-8" },
-                body: JSON.stringify({
-                    destinatario: supervisor.value,
-                    nomeArquivo: nomeArquivo,
-                    pdfBase64: base64,
-                    natureza: document.getElementById("natureza_acao").value || "Não informada",
-                    evento: texto("evento") || "Não informado"
-                })
-            });
-
-            atualizarStatus("Relatório salvo e e-mail enviado ao supervisor com sucesso!");
-            
-            setTimeout(() => {
-                alert("O relatório foi impresso e uma cópia em PDF foi enviada em anexo para " + supervisor.options[supervisor.selectedIndex].text);
-            }, 500);
-
-        } catch (erro) {
-            console.error("Erro no envio em segundo plano:", erro);
-            atualizarStatus("Erro ao enviar o e-mail automático.", true);
-        }
-    }, 500);
+    } catch (erro) {
+        console.error("Erro ao enviar o PDF:", erro);
+        atualizarStatus("Falha ao enviar e-mail.", true);
+        alert("Ocorreu um erro no envio. Abrindo modo de impressão manual.");
+        window.print();
+    } finally {
+        document.body.classList.remove("gerando-pdf");
+    }
 }
 
 function iniciarAplicacao() {
