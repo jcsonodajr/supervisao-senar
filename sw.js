@@ -1,6 +1,4 @@
-from pathlib import Path
-
-content = r'''/*
+/*
  * Service Worker - Supervisão de Instrutoria SENAR
  * Cache version: v2
  *
@@ -119,7 +117,3 @@ self.addEventListener("fetch", (event) => {
         })()
     );
 });
-'''
-path = Path("/mnt/data/sw.js")
-path.write_text(content, encoding="utf-8")
-print(f"Arquivo criado: {path} ({path.stat().st_size} bytes)")
