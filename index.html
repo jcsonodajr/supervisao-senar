@@ -100,16 +100,16 @@ if ("serviceWorker" in navigator) {
     <select id="supervisor" name="supervisor"
         class="w-full border rounded p-3 bg-white" required>
         <option value="">Selecione o supervisor</option>
-        <option value="julio.junior@senarms.org.br">
+        <option value="julio">
             Julio Cesar Sonoda Junior
         </option>
-        <option value="lyvia.matos@senarms.org.br">
+        <option value="lyvia">
             Lyvia Chicrala Matos
         </option>
-        <option value="lucas.matos@senarms.org.br">
+        <option value="lucas">
             Lucas Matos
         </option>
-        <option value="MARLON.MALIZIA@senarms.org.br">
+        <option value="marlon">
             Marlon dos Santos Malizia
         </option>
     </select>
@@ -268,11 +268,14 @@ if ("serviceWorker" in navigator) {
 </div>
 
 <div class="no-print mt-6 border-t pt-5 space-y-3">
-    <p id="status-salvamento" class="status-salvamento text-gray-500" role="status" aria-live="polite">Preparando o formulário...</p>
+    <p id="status-salvamento" class="status-salvamento text-gray-500" role="status" aria-live="polite">Formulário pronto.</p>
     <div class="flex flex-wrap gap-3">
         <button type="button" id="btn-ia" onclick="refinarComIA()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-5 rounded shadow flex-1">Refinar textos com IA</button>
         <button type="button" onclick="gerarPDF()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-5 rounded shadow flex-1">Imprimir / Salvar PDF</button>
-        <button type="button" id="btn-email" onclick="enviarPorEmail()" class="bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-5 rounded shadow flex-1">Enviar PDF por e-mail</button>
+        <button type="button" id="btn-email" onclick="enviarPorEmail()" class="bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-5 rounded shadow flex-1">Enviar PDF + JSON por e-mail</button>
+        <button type="button" id="btn-json" onclick="baixarJSON()" class="bg-gray-700 hover:bg-gray-800 text-white font-bold py-3 px-5 rounded shadow flex-1">Baixar JSON</button>
+        <button type="button" onclick="document.getElementById('arquivo-json').click()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-5 rounded shadow flex-1">Carregar avaliação</button>
+        <input type="file" id="arquivo-json" accept="application/json,.json" class="hidden" onchange="carregarJSON(this)">
     </div>
 </div>
 </main>
@@ -290,68 +293,68 @@ const escala = [
 
 const questionario = [
     { categoria: "Objetivos", itens: [
-        "Apresentou, aos participantes, os objetivos instrucionais ou os resultados esperados.",
-        "Seguiu os objetivos planejados, numa sequência lógica."
+        { id: "objetivos.apresentou_objetivos", texto: "Apresentou, aos participantes, os objetivos instrucionais ou os resultados esperados." },
+        { id: "objetivos.seguiu_objetivos_sequencia", texto: "Seguiu os objetivos planejados, numa sequência lógica." }
     ]},
     { categoria: "Conteúdo programático", itens: [
-        "Seguiu a sequência planejada para desenvolvimento do conteúdo.",
-        "Usou exemplos baseados em situações vivenciadas pelos participantes.",
-        "Desenvolveu o conteúdo dentro do tempo previsto.",
-        "A parte teórica desenvolveu-se conjuntamente à prática.",
-        "Compatibilizou o conteúdo com interesses e necessidades dos participantes.",
-        "Ao iniciar novo conteúdo, apresentou a sua relação com outros já abordados.",
-        "Demonstrou segurança em seus posicionamentos.",
-        "Utilizou a linguagem escrita e oral corretamente.",
-        "Foi claro e objetivo na exposição dos assuntos.",
-        "Abordou questões relacionadas à saúde e segurança do trabalhador e//ou aspectos sobre meio ambiente, cidadania, qualidade e produtividade, sempre que pertinentes.",
-        "Decodificou os termos técnicos, quando utilizados.",
-        "Evidenciou a aplicabilidade prática do conteúdo ministrado."
+        { id: "conteudo.seguiu_sequencia_planejada", texto: "Seguiu a sequência planejada para desenvolvimento do conteúdo." },
+        { id: "conteudo.exemplos_vivenciados", texto: "Usou exemplos baseados em situações vivenciadas pelos participantes." },
+        { id: "conteudo.cumpriu_tempo_previsto", texto: "Desenvolveu o conteúdo dentro do tempo previsto." },
+        { id: "conteudo.teoria_junto_pratica", texto: "A parte teórica desenvolveu-se conjuntamente à prática." },
+        { id: "conteudo.compativel_interesses", texto: "Compatibilizou o conteúdo com interesses e necessidades dos participantes." },
+        { id: "conteudo.relacionou_conteudos", texto: "Ao iniciar novo conteúdo, apresentou a sua relação com outros já abordados." },
+        { id: "conteudo.seguranca_posicionamentos", texto: "Demonstrou segurança em seus posicionamentos." },
+        { id: "conteudo.linguagem_correta", texto: "Utilizou a linguagem escrita e oral corretamente." },
+        { id: "conteudo.claro_objetivo", texto: "Foi claro e objetivo na exposição dos assuntos." },
+        { id: "conteudo.saude_seguranca_meio_ambiente", texto: "Abordou questões relacionadas à saúde e segurança do trabalhador e/ou aspectos sobre meio ambiente, cidadania, qualidade e produtividade, sempre que pertinentes." },
+        { id: "conteudo.decodificou_termos_tecnicos", texto: "Decodificou os termos técnicos, quando utilizados." },
+        { id: "conteudo.aplicabilidade_pratica", texto: "Evidenciou a aplicabilidade prática do conteúdo ministrado." }
     ]},
     { categoria: "Desenvolvimento das técnicas instrucionais", itens: [
-        "Dominou técnicas instrucionais aplicadas.",
-        "As técnicas utilizadas foram apropriadas ao conteúdo ministrado.",
-        "As técnicas utilizadas foram compatíveis com as características dos participantes."
+        { id: "tecnicas.dominio_tecnicas", texto: "Dominou técnicas instrucionais aplicadas." },
+        { id: "tecnicas.apropriadas_conteudo", texto: "As técnicas utilizadas foram apropriadas ao conteúdo ministrado." },
+        { id: "tecnicas.compativeis_participantes", texto: "As técnicas utilizadas foram compatíveis com as características dos participantes." }
     ]},
     { categoria: "Recursos instrucionais", itens: [
-        "Os recursos instrucionais necessários para o desenvolvimento do evento foram conferidos e testados.",
-        "Foram utilizados no momento oportuno.",
-        "Facilitaram a compreensão do assunto.",
-        "Foram disponibilizados na quantidade apropriada ao número de participantes.",
-        "Foram adequados às características dos participantes.",
-        "Apresentaram bom estado de conservação, sem defeitos comprometedores para a aprendizagem.",
-        "Estavam adequados ao local do evento."
+        { id: "recursos.conferidos_testados", texto: "Os recursos instrucionais necessários para o desenvolvimento do evento foram conferidos e testados." },
+        { id: "recursos.momento_oportuno", texto: "Foram utilizados no momento oportuno." },
+        { id: "recursos.facilitaram_compreensao", texto: "Facilitaram a compreensão do assunto." },
+        { id: "recursos.quantidade_apropriada", texto: "Foram disponibilizados na quantidade apropriada ao número de participantes." },
+        { id: "recursos.adequados_participantes", texto: "Foram adequados às características dos participantes." },
+        { id: "recursos.bom_estado", texto: "Apresentaram bom estado de conservação, sem defeitos comprometedores para a aprendizagem." },
+        { id: "recursos.adequados_local", texto: "Estavam adequados ao local do evento." }
     ]},
     { categoria: "Avaliação", itens: [
-        "Aplicou avaliações diagnósticas, formativas e somativas.",
-        "Os procedimentos de avaliação foram compatíveis com as características dos participantes.",
-        "Informou aos participantes sobre seus acertos e erros, apresentando-lhes as respostas ou os comportamentos corretos."
+        { id: "avaliacao.diagnostica_formativa_somativa", texto: "Aplicou avaliações diagnósticas, formativas e somativas." },
+        { id: "avaliacao.compativel_participantes", texto: "Os procedimentos de avaliação foram compatíveis com as características dos participantes." },
+        { id: "avaliacao.informou_acertos_erros", texto: "Informou aos participantes sobre seus acertos e erros, apresentando-lhes as respostas ou os comportamentos corretos." }
     ]},
     { categoria: "Plano instrucional", itens: [
-        "Portou o plano instrucional em formato físico.",
-        "Seguiu o plano instrucional elaborado.",
-        "Participou da elaboração do plano instrucional.",
-        "Necessitou ajustar/modificar o plano instrucional."
+        { id: "plano.portou_formato_fisico", texto: "Portou o plano instrucional em formato físico." },
+        { id: "plano.seguiu_plano", texto: "Seguiu o plano instrucional elaborado." },
+        { id: "plano.participou_elaboracao", texto: "Participou da elaboração do plano instrucional." },
+        { id: "plano.necessitou_ajustar", texto: "Necessitou ajustar/modificar o plano instrucional." }
     ]},
     { categoria: "Postura do instrutor", itens: [
-        "Informou os critérios para a certificação.",
-        "Apresentou coerência entre o que apontava como correto e o que executava perante a turma.",
-        "Estabeleceu contrato psicológico e o afixou em local visível durante o evento.",
-        "Forneceu as informações necessárias para que os participantes apresentassem o comportamento esperado.",
-        "Estabeleceu um bom relacionamento com os participantes.",
-        "Realizou as práticas de forma que todos os participantes conseguissem visualizá-las.",
-        "Exerceu liderança perante a turma, estabelecendo um clima de organização.",
-        "Deu oportunidade a todos os participantes de realizarem cada prática.",
-        "Foi hábil e criativo na resolução de problemas.",
-        "Supervisionou a atividade prática realizada por cada participante.",
-        "Foi pontual.",
-        "Preocupou-se com sua aparência pessoal.",
-        "Foi assíduo.",
-        "Preocupou-se em utilizar traje adequado à situação de trabalho em que se encontrava.",
-        "Estimulou a participação ativa dos participantes.",
-        "Orientou quanto aos recursos necessários a serem providenciados pelos participantes.",
-        "Valorizou os participantes pelo desempenho correto nas práticas e/ou na resolução de problemas propostos.",
-        "Organizou o espaço físico.",
-        "Socializou as respostas das perguntas individuais."
+        { id: "postura.criterios_certificacao", texto: "Informou os critérios para a certificação." },
+        { id: "postura.coerencia_discurso_pratica", texto: "Apresentou coerência entre o que apontava como correto e o que executava perante a turma." },
+        { id: "postura.contrato_psicologico", texto: "Estabeleceu contrato psicológico e o afixou em local visível durante o evento." },
+        { id: "postura.informacoes_comportamento_esperado", texto: "Forneceu as informações necessárias para que os participantes apresentassem o comportamento esperado." },
+        { id: "postura.bom_relacionamento", texto: "Estabeleceu um bom relacionamento com os participantes." },
+        { id: "postura.praticas_visiveis", texto: "Realizou as práticas de forma que todos os participantes conseguissem visualizá-las." },
+        { id: "postura.lideranca_organizacao", texto: "Exerceu liderança perante a turma, estabelecendo um clima de organização." },
+        { id: "postura.oportunidade_praticas_todos", texto: "Deu oportunidade a todos os participantes de realizarem cada prática." },
+        { id: "postura.criativo_resolucao_problemas", texto: "Foi hábil e criativo na resolução de problemas." },
+        { id: "postura.supervisionou_praticas", texto: "Supervisionou a atividade prática realizada por cada participante." },
+        { id: "postura.pontual", texto: "Foi pontual." },
+        { id: "postura.aparencia_pessoal", texto: "Preocupou-se com sua aparência pessoal." },
+        { id: "postura.assiduo", texto: "Foi assíduo." },
+        { id: "postura.traje_adequado", texto: "Preocupou-se em utilizar traje adequado à situação de trabalho em que se encontrava." },
+        { id: "postura.estimulou_participacao", texto: "Estimulou a participação ativa dos participantes." },
+        { id: "postura.orientou_recursos_participantes", texto: "Orientou quanto aos recursos necessários a serem providenciados pelos participantes." },
+        { id: "postura.valorizou_desempenho", texto: "Valorizou os participantes pelo desempenho correto nas práticas e/ou na resolução de problemas propostos." },
+        { id: "postura.organizou_espaco_fisico", texto: "Organizou o espaço físico." },
+        { id: "postura.socializou_respostas", texto: "Socializou as respostas das perguntas individuais." }
     ]}
 ];
 
@@ -459,8 +462,9 @@ function renderizarQuestionario() {
         html += `<section class="pdf-section mb-8">
             <h2 class="pdf-section-title text-lg md:text-xl font-bold bg-green-100 text-green-800 p-3 rounded mb-4">${bloco.categoria}</h2>`;
 
-        bloco.itens.forEach((item, i) => {
-            const nome = `q_${b}_${i}`;
+        bloco.itens.forEach((it) => {
+            const item = it.texto;
+            const nome = it.id;
             html += `<div class="pdf-question mb-4 pb-4 border-b border-gray-200">
                 <p class="text-gray-700 mb-3 font-medium text-sm md:text-base leading-snug">${item}</p>
                 <div class="rating-row flex flex-wrap items-center gap-3">
@@ -641,8 +645,9 @@ function montarRelatorioPDF() {
     questionario.forEach((grupo, b) => {
         questoes += `<div style="margin-top:14px;">
             <div style="background:#e8f3e8;color:#14532d;font-weight:bold;font-size:13px;padding:6px 8px;border-radius:4px;margin-bottom:6px;">${escaparHTML(grupo.categoria)}</div>`;
-        grupo.itens.forEach((item, i) => {
-            const seletor = document.querySelector(`select[name="q_${b}_${i}"]`);
+        grupo.itens.forEach((it) => {
+            const item = it.texto;
+            const seletor = document.querySelector(`select[name="${it.id}"]`);
             const escolhida = seletor ? escala.find(e => String(e.valor) === seletor.value) : null;
             const resposta = escolhida ? `${escolhida.valor} — ${escolhida.label}` : "Não avaliado";
             const destaque = escolhida && escolhida.valor <= 2 ? "color:#c2410c;font-weight:bold;" : "";
@@ -681,6 +686,135 @@ function montarRelatorioPDF() {
         ${bloco("Aspectos discutidos para melhoria do desempenho e sugestões", melhorias, "#c2410c")}
     `;
     return raiz;
+}
+
+const SCHEMA_VERSION = 1;
+const VERSAO_APP = "2026.11.1";
+
+function dataLocalISO() {
+    const d = new Date();
+    const p = n => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+function nomeBaseArquivo() {
+    const evento = valorTexto("evento").replace(/[^\p{L}\p{N}]+/gu, "_").replace(/^_+|_+$/g, "").slice(0, 40);
+    return `Supervisao_${evento || "Instrutoria"}_${dataLocalISO()}`;
+}
+
+function montarJSON() {
+    const avaliacao = [];
+    questionario.forEach(g => g.itens.forEach(it => {
+        const sel = document.querySelector(`select[name="${it.id}"]`);
+        const esc = sel && sel.value !== "" ? escala.find(e => String(e.valor) === sel.value) : null;
+        avaliacao.push({ id: it.id, categoria: g.categoria, item: it.texto,
+            nota: esc ? esc.valor : null, rotulo: esc ? esc.label : null });
+    }));
+    const avaliados = avaliacao.filter(a => a.nota !== null).length;
+    return {
+        schemaVersion: SCHEMA_VERSION,
+        app: { versao: VERSAO_APP },
+        geradoEm: new Date().toISOString(),
+        envio: { supervisorId: document.getElementById("supervisor").value || null },
+        acao: {
+            natureza: valorSelect("natureza_acao"),
+            descricao: valorTexto("descricao_acao"),
+            evento: valorTexto("evento"),
+            municipioOrigem: valorSelect("municipio_origem"),
+            municipioDestino: valorSelect("municipio_destino"),
+            dataInicio: valorTexto("data_inicio"),
+            dataFim: valorTexto("data_fim")
+        },
+        resumo: { totalItens: avaliacao.length, avaliados: avaliados, semNota: avaliacao.length - avaliados },
+        avaliacao: avaliacao,
+        rascunho: valorTexto("rascunho"),
+        textos: {
+            aspectosPositivos: { original: valorTexto("aspectos_positivos_original"), final: valorTexto("aspectos_positivos") },
+            aspectosMelhoria: { original: valorTexto("aspectos_melhoria_original"), final: valorTexto("aspectos_melhoria") }
+        }
+    };
+}
+
+function baixarJSON() {
+    if (!validarDatas()) return;
+    const blob = new Blob([JSON.stringify(montarJSON(), null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = nomeBaseArquivo() + ".json";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    atualizarStatus("JSON baixado.");
+}
+
+function definirSelectPorTexto(id, texto) {
+    const el = document.getElementById(id);
+    const op = el && texto ? Array.from(el.options).find(o => o.text.trim() === texto) : null;
+    if (el) el.selectedIndex = op ? op.index : 0;
+}
+
+async function carregarJSON(input) {
+    const arquivo = input.files && input.files[0];
+    input.value = "";
+    if (!arquivo) return;
+
+    let dados;
+    try { dados = JSON.parse(await arquivo.text()); }
+    catch (_) { alert("O arquivo não é um JSON válido."); return; }
+
+    if (!dados || typeof dados !== "object" || !Number.isInteger(dados.schemaVersion)) {
+        alert("Este arquivo não parece ser uma avaliação deste aplicativo.");
+        return;
+    }
+    if (dados.schemaVersion > SCHEMA_VERSION) {
+        alert("Este arquivo foi gerado por uma versão mais nova do aplicativo.");
+        return;
+    }
+
+    const atual = montarJSON();
+    const temDados = atual.resumo.avaliados > 0 || atual.acao.descricao || atual.acao.evento ||
+        obterCamposTexto().some(id => valorTexto(id));
+    if (temDados && !confirm("Carregar este arquivo vai substituir o que está preenchido. Continuar?")) return;
+
+    const notas = new Map();
+    (Array.isArray(dados.avaliacao) ? dados.avaliacao : []).forEach(a => { if (a && a.id) notas.set(a.id, a.nota); });
+    let carregados = 0, ignorados = 0;
+    questionario.forEach(g => g.itens.forEach(it => {
+        const sel = document.querySelector(`select[name="${it.id}"]`);
+        const n = notas.get(it.id);
+        sel.value = Number.isInteger(n) && n >= 0 && n <= 4 ? String(n) : "";
+        if (sel.value !== "") carregados++;
+        else if (n !== null && n !== undefined) ignorados++;
+        notas.delete(it.id);
+        atualizarSignificado(it.id);
+    }));
+    ignorados += notas.size;
+
+    const ac = dados.acao || {}, tx = dados.textos || {};
+    const texto = (id, v) => { document.getElementById(id).value = typeof v === "string" ? v : ""; };
+    texto("descricao_acao", ac.descricao);
+    texto("evento", ac.evento);
+    texto("data_inicio", validarDataCompleta(ac.dataInicio) ? ac.dataInicio : "");
+    texto("data_fim", validarDataCompleta(ac.dataFim) ? ac.dataFim : "");
+    definirSelectPorTexto("natureza_acao", ac.natureza);
+    definirSelectPorTexto("municipio_origem", ac.municipioOrigem);
+    definirSelectPorTexto("municipio_destino", ac.municipioDestino);
+    texto("rascunho", dados.rascunho);
+    texto("aspectos_positivos_original", tx.aspectosPositivos && tx.aspectosPositivos.original);
+    texto("aspectos_positivos", tx.aspectosPositivos && tx.aspectosPositivos.final);
+    texto("aspectos_melhoria_original", tx.aspectosMelhoria && tx.aspectosMelhoria.original);
+    texto("aspectos_melhoria", tx.aspectosMelhoria && tx.aspectosMelhoria.final);
+
+    const sup = document.getElementById("supervisor");
+    const idSup = dados.envio && dados.envio.supervisorId;
+    sup.value = Array.from(sup.options).some(o => o.value === idSup) ? idSup : "";
+
+    ajustarTextareas();
+    const msg = `Avaliação carregada: ${carregados} item(ns) com nota` + (ignorados ? `, ${ignorados} valor(es) ignorado(s) por serem inválidos ou desconhecidos.` : ".");
+    atualizarStatus(msg);
+    alert(msg);
 }
 
 function gerarPdfBlob(elemento) {
@@ -724,28 +858,42 @@ async function enviarPorEmail() {
         const pdfBlob = await gerarPdfBlob(montarRelatorioPDF());
         if (!pdfBlob || pdfBlob.size === 0) throw new Error("O PDF foi gerado vazio.");
 
-        const hoje = new Date().toISOString().slice(0, 10);
-        const eventoNome = valorTexto("evento").replace(/[^\p{L}\p{N}]+/gu, "_").replace(/^_+|_+$/g, "").slice(0, 40);
-        const nomeArquivo = `Supervisao_${eventoNome || "Instrutoria"}_${hoje}.pdf`;
+        const nomeBase = nomeBaseArquivo();
+        const nomeArquivo = nomeBase + ".pdf";
 
-        atualizarStatus("Enviando o PDF por e-mail...");
+        const nomeSupervisor = supervisor.options[supervisor.selectedIndex].text.trim();
+        atualizarStatus("Enviando o PDF e o JSON por e-mail...");
         const base64 = await blobParaBase64(pdfBlob);
+        const jsonTexto = JSON.stringify(montarJSON(), null, 2);
 
-        await fetch(URL_APPS_SCRIPT, {
-            method: "POST",
-            mode: "no-cors",
-            headers: { "Content-Type": "text/plain;charset=utf-8" },
-            body: JSON.stringify({
-                destinatario: supervisor.value,
-                nomeArquivo: nomeArquivo,
-                pdfBase64: base64,
-                natureza: document.getElementById("natureza_acao").value || "Geral",
-                evento: valorTexto("evento") || "Supervisão"
-            })
-        });
+        let resultado = null;
+        try {
+            const resposta = await fetch(URL_APPS_SCRIPT, {
+                method: "POST",
+                headers: { "Content-Type": "text/plain;charset=utf-8" },
+                body: JSON.stringify({
+                    supervisorId: supervisor.value,
+                    nomeArquivo: nomeArquivo,
+                    pdfBase64: base64,
+                    nomeArquivoJson: nomeBase + ".json",
+                    jsonTexto: jsonTexto,
+                    natureza: document.getElementById("natureza_acao").value || "Geral",
+                    evento: valorTexto("evento") || "Supervisão"
+                })
+            });
+            resultado = await resposta.json();
+        } catch (e) {
+            // Rede, CORS ou resposta ilegível: não há como saber se o servidor recebeu.
+            atualizarStatus("Não foi possível confirmar o envio. Verifique a caixa de entrada antes de reenviar.", true);
+            alert("Não foi possível confirmar o envio.\n\nVerifique a caixa de entrada de " + nomeSupervisor + " antes de tentar de novo. Se preferir, use \"Imprimir / Salvar PDF\" e \"Baixar JSON\".");
+            return;
+        }
 
-        atualizarStatus("Solicitação de envio concluída para " + supervisor.value + ". Confirme o recebimento na caixa de entrada.");
-        alert("Relatório enviado para " + supervisor.value + ".");
+        if (!resultado || resultado.sucesso !== true) {
+            throw new Error((resultado && resultado.erro) || "Resposta inesperada do servidor.");
+        }
+        atualizarStatus("E-mail enviado para " + nomeSupervisor + " (PDF + JSON).");
+        alert("Relatório enviado para " + nomeSupervisor + ".");
     } catch (erro) {
         console.error("Erro ao enviar por e-mail:", erro);
         atualizarStatus("Não foi possível enviar o relatório por e-mail.", true);
@@ -810,8 +958,8 @@ function gerarPDF() {
     document.getElementById("data-relatorio").textContent =
         "Data de emissão: " + new Date().toLocaleDateString("pt-BR");
 
-    questionario.forEach((bloco, b) => {
-        bloco.itens.forEach((_, i) => atualizarSignificado(`q_${b}_${i}`));
+    questionario.forEach(bloco => {
+        bloco.itens.forEach(it => atualizarSignificado(it.id));
     });
 
     atualizarStatus("Abrindo janela de impressão / Salvar como PDF...");
