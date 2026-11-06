@@ -1,30 +1,69 @@
 /*
  * Service Worker - Supervisão de Instrutoria SENAR
- * Cache version: v2
+ * Cache version: v3
  *
- * Observação:
- * Este arquivo armazena os arquivos locais principais do PWA.
- * As bibliotecas Tailwind CSS e html2pdf.js ainda são carregadas por CDN
- * no index.html; por isso, seus recursos não ficam garantidos offline
- * até serem disponibilizados localmente em uma etapa posterior.
+ * Guarda no aparelho: a página, o manifesto, os ícones e cópias do Tailwind CSS
+ * e do html2pdf.js (baixados dos CDNs na instalação, com internet).
+ * Depois disso o aplicativo abre sem conexão, com o visual normal.
+ *
+ * Para forçar a atualização dos arquivos guardados (inclusive os CDNs),
+ * aumente CACHE_NAME (ex.: v4).
  */
 
-const CACHE_NAME = "supervisao-senar-v2";
+const CACHE_NAME = "supervisao-senar-v3";
 const APP_PREFIX = "supervisao-senar-";
 
 const APP_URL = new URL("index.html", self.registration.scope).href;
 const MANIFEST_URL = new URL("manifest.json", self.registration.scope).href;
+
+// Opcionais: se algum faltar ou falhar, a instalação continua.
+const ICON_URLS = ["icon-180.png", "icon-192.png", "icon-512.png", "icon-maskable-512.png"]
+    .map((nome) => new URL(nome, self.registration.scope).href);
+
+const CDN_URLS = [
+    "https://cdn.tailwindcss.com",
+    "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.3/html2pdf.bundle.min.js"
+].map((url) => new URL(url).href);
+
+async function guardarCDN(cache, url) {
+    try {
+        // no-cors: a resposta é "opaca" (não legível), mas pode ser usada por <script>.
+        const resposta = await fetch(new Request(url, { mode: "no-cors" }));
+        if (resposta && (resposta.ok || resposta.type === "opaque")) {
+            await cache.put(url, resposta);
+        }
+    } catch (erro) {
+        // Sem internet na instalação: será tentado de novo no primeiro uso online.
+    }
+}
+
+async function responderCDN(request) {
+    const cache = await caches.open(CACHE_NAME);
+    const guardada = await cache.match(request.url, { ignoreVary: true });
+    if (guardada) return guardada;
+
+    try {
+        const resposta = await fetch(request);
+        if (resposta && (resposta.ok || resposta.type === "opaque")) {
+            await cache.put(request.url, resposta.clone());
+        }
+        return resposta;
+    } catch (erro) {
+        return new Response("", { status: 503 });
+    }
+}
 
 self.addEventListener("install", (event) => {
     event.waitUntil(
         (async () => {
             const cache = await caches.open(CACHE_NAME);
 
-            // O Service Worker só é instalado se os arquivos essenciais
-            // locais puderem ser armazenados.
+            // Essenciais: a instalação só ocorre se estes arquivos locais forem guardados.
             await cache.addAll([APP_URL, MANIFEST_URL]);
 
-            // Solicita ativação da nova versão sem esperar todas as abas fecharem.
+            await Promise.all(ICON_URLS.map((url) => cache.add(url).catch(() => {})));
+            await Promise.all(CDN_URLS.map((url) => guardarCDN(cache, url)));
+
             await self.skipWaiting();
         })()
     );
@@ -33,19 +72,14 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
     event.waitUntil(
         (async () => {
-            const cacheNames = await caches.keys();
+            const nomes = await caches.keys();
 
             await Promise.all(
-                cacheNames
-                    .filter(
-                        (name) =>
-                            name.startsWith(APP_PREFIX) &&
-                            name !== CACHE_NAME
-                    )
-                    .map((name) => caches.delete(name))
+                nomes
+                    .filter((nome) => nome.startsWith(APP_PREFIX) && nome !== CACHE_NAME)
+                    .map((nome) => caches.delete(nome))
             );
 
-            // Faz a versão ativa controlar as páginas abertas deste escopo.
             await self.clients.claim();
         })()
     );
@@ -54,12 +88,17 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
     const request = event.request;
 
-    // Não intercepta requisições que não sejam GET.
     if (request.method !== "GET") return;
 
     const requestUrl = new URL(request.url);
 
-    // Não intercepta CDNs ou outros domínios.
+    // Bibliotecas dos CDNs usadas pelo aplicativo: cache primeiro.
+    if (CDN_URLS.includes(requestUrl.href)) {
+        event.respondWith(responderCDN(request));
+        return;
+    }
+
+    // Demais domínios (e-mail, IA etc.) não são interceptados.
     if (requestUrl.origin !== self.location.origin) return;
 
     // Navegação: tenta a versão atual pela rede; sem internet, usa o index em cache.
@@ -111,7 +150,6 @@ self.addEventListener("fetch", (event) => {
 
                 return networkResponse;
             } catch (error) {
-                // Não fabrica uma resposta para recursos desconhecidos.
                 return new Response("", { status: 503 });
             }
         })()
