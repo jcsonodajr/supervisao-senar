@@ -9,7 +9,7 @@ Aplicativo web (PWA) para apoiar a supervisão de instrutoria do SENAR: formulá
 
 - Questionário com **50 itens em 7 categorias**: Objetivos, Conteúdo programático, Desenvolvimento das técnicas instrucionais, Recursos instrucionais, Avaliação, Plano instrucional e Postura do instrutor.
 - Escala de 0 a 4: 4 — Sim, plenamente · 3 — Sim, parcialmente · 2 — Precisa melhorar · 1 — Não · 0 — Não observado.
-- Dados da ação: natureza, descrição, evento, municípios de origem e destino, período (DD/MM/AAAA, com validação).
+- Dados da ação: natureza, descrição, evento, instrutor avaliado, turma, supervisor que realizou a avaliação, municípios de origem e destino, período (DD/MM/AAAA, com validação).
 - Rascunho de campo, aspectos positivos e aspectos de melhoria (cada texto guarda a versão original e a versão revisada).
 - **Refinamento com IA** dos textos (ver "Segurança e privacidade"). O texto original nunca é alterado, e o app pergunta antes de substituir uma versão revisada editada à mão.
 - **Salvamento automático** do formulário no navegador, com restauração ao reabrir e botão **Limpar avaliação**.
@@ -57,6 +57,7 @@ Cada avaliação exportada, baixada ou enviada por e-mail segue este formato (`s
   "envio": { "supervisorId": "julio" },
   "acao": {
     "natureza": "", "descricao": "", "evento": "",
+    "instrutor": "", "turma": "", "supervisorAvaliador": "",
     "municipioOrigem": "", "municipioDestino": "",
     "dataInicio": "03/11/2026", "dataFim": "04/11/2026"
   },
@@ -154,8 +155,7 @@ HTML5, JavaScript, Tailwind CSS (via CDN), html2pdf.js (via CDN), Service Worker
 ## Limitações conhecidas
 
 - O PDF enviado por e-mail é uma imagem da página, e o texto não é selecionável. O JSON anexo traz os dados em texto.
-- O relatório não identifica o instrutor avaliado, a turma nem o supervisor que avaliou.
-- O item "Necessitou ajustar/modificar o plano instrucional" tem a escala invertida em relação aos demais (nota alta significa mais ajustes). Isso deve ser considerado em qualquer cálculo de média.
+- O item "Necessitou ajustar/modificar o plano instrucional" segue a metodologia aplicada, e nele a nota alta indica mais ajustes, ao contrário dos demais itens. Isso deve ser considerado em qualquer cálculo de média.
 - O estilo e o gerador de PDF dependem de serviços externos (ver "Funcionamento offline").
 - Existem dois geradores de relatório (impressão e PDF do e-mail) que precisam ser mantidos em sincronia.
 
@@ -163,8 +163,6 @@ HTML5, JavaScript, Tailwind CSS (via CDN), html2pdf.js (via CDN), Service Worker
 
 - Trazer Tailwind e html2pdf.js para o repositório e atualizar o `sw.js`, para o aplicativo abrir de verdade sem internet.
 - Ícones próprios para o aplicativo instalado.
-- Campos de identificação do instrutor, turma e supervisor.
-- Tratamento do item de escala invertida.
 - Unificar a geração do relatório de impressão e do PDF.
 - Proteções adicionais no Worker da IA (limite de uso e origem permitida).
 - PDF com texto selecionável.
