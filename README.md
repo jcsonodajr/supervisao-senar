@@ -94,13 +94,17 @@ O backup confiável de uma supervisão é o envio por e-mail ou o arquivo JSON b
 
 ## Funcionamento offline
 
-O `sw.js` guarda no aparelho a página e o manifesto. **O modo offline ainda é limitado**, porque o estilo (Tailwind) e o gerador de PDF do e-mail (html2pdf.js) são carregados de serviços externos. Sem internet:
+Na primeira vez em que o aplicativo é aberto **com internet** depois de uma atualização, o `sw.js` guarda no aparelho a página, o manifesto, os ícones e cópias do Tailwind CSS e do html2pdf.js (baixadas dos CDNs). Depois disso o aplicativo abre sem internet, com o visual normal.
 
-- a página pode abrir **sem o estilo visual**;
-- o PDF do e-mail não é gerado;
-- o refinamento com IA e o envio por e-mail não funcionam.
+- **Funciona sem internet:** abrir o aplicativo, preencher, rascunho automático, Baixar JSON, Carregar avaliação e Imprimir / Salvar PDF.
+- **Exige internet:** envio por e-mail e refinamento com IA.
 
-**Baixar JSON** funciona sem internet. Antes de usar em atividades de campo, teste o aplicativo em modo avião.
+Observações:
+
+- Instale o aplicativo na tela inicial. No iPhone, o Safari pode apagar os dados de sites que ficam vários dias sem uso.
+- As cópias guardadas **não se atualizam sozinhas**. Para forçar a atualização (inclusive das bibliotecas), aumente `CACHE_NAME` no `sw.js`.
+- O Tailwind via CDN é o modo de desenvolvimento da biblioteca. Funciona e fica guardado no aparelho, mas a recomendação oficial para produção é gerar um CSS próprio (o que exige Node).
+- **Teste antes de usar em campo:** abra o aplicativo com internet, ative o modo avião, feche o aplicativo e abra de novo.
 
 ## Segurança e privacidade
 
@@ -125,12 +129,17 @@ supervisao-senar/
 ├── index.html
 ├── manifest.json
 ├── sw.js
+├── icon-180.png
+├── icon-192.png
+├── icon-512.png
+├── icon-maskable-512.png
 └── README.md
 ```
 
 - `index.html`: interface, questionário, rascunho automático, JSON, PDF, envio e IA.
 - `manifest.json`: nome, aparência e configurações de instalação.
 - `sw.js`: cache e suporte ao funcionamento offline.
+- `icon-*.png`: ícones do aplicativo (iOS, Android e ícone adaptável).
 - `README.md`: esta documentação.
 
 ## Publicação
@@ -150,19 +159,17 @@ supervisao-senar/
 
 ## Tecnologias
 
-HTML5, JavaScript, Tailwind CSS (via CDN), html2pdf.js (via CDN), Service Worker, Web App Manifest, Google Apps Script, Cloudflare Workers e GitHub Pages.
+HTML5, JavaScript, Tailwind CSS (via CDN, com cópia no aparelho), html2pdf.js (via CDN, com cópia no aparelho), Service Worker, Web App Manifest, Google Apps Script, Cloudflare Workers e GitHub Pages.
 
 ## Limitações conhecidas
 
 - O PDF enviado por e-mail é uma imagem da página, e o texto não é selecionável. O JSON anexo traz os dados em texto.
 - O item "Necessitou ajustar/modificar o plano instrucional" segue a metodologia aplicada, e nele a nota alta indica mais ajustes, ao contrário dos demais itens. Isso deve ser considerado em qualquer cálculo de média.
-- O estilo e o gerador de PDF dependem de serviços externos (ver "Funcionamento offline").
+- A primeira abertura (e a primeira depois de aumentar `CACHE_NAME`) exige internet para baixar o Tailwind e o html2pdf.js.
 - Existem dois geradores de relatório (impressão e PDF do e-mail) que precisam ser mantidos em sincronia.
 
 ## Próximas etapas
 
-- Trazer Tailwind e html2pdf.js para o repositório e atualizar o `sw.js`, para o aplicativo abrir de verdade sem internet.
-- Ícones próprios para o aplicativo instalado.
 - Unificar a geração do relatório de impressão e do PDF.
 - Proteções adicionais no Worker da IA (limite de uso e origem permitida).
 - PDF com texto selecionável.
