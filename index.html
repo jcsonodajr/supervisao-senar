@@ -276,6 +276,7 @@ if ("serviceWorker" in navigator) {
         <button type="button" id="btn-json" onclick="baixarJSON()" class="bg-gray-700 hover:bg-gray-800 text-white font-bold py-3 px-5 rounded shadow flex-1">Baixar JSON</button>
         <button type="button" onclick="document.getElementById('arquivo-json').click()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-5 rounded shadow flex-1">Carregar avaliação</button>
         <input type="file" id="arquivo-json" accept="application/json,.json" class="hidden" onchange="carregarJSON(this)">
+        <button type="button" onclick="limparAvaliacao(false)" class="bg-red-100 hover:bg-red-200 text-red-800 font-bold py-3 px-5 rounded shadow flex-1">Limpar avaliação</button>
     </div>
 </div>
 </main>
@@ -529,6 +530,9 @@ async function refinarComIA() {
         alert("Preencha o rascunho ou pelo menos um dos textos antes de solicitar o refinamento.");
         return;
     }
+    const editadoAMao = c => c.value.trim() && c.value !== c.dataset.ia;
+    if ((editadoAMao(campoPositivoFinal) || editadoAMao(campoMelhoriaFinal)) &&
+        !confirm("Os textos revisados atuais serão substituídos pelo resultado da IA (os originais não são alterados). Continuar?")) return;
     if (botao.disabled) return;
 
     const rotuloOriginal = botao.textContent;
@@ -559,6 +563,9 @@ async function refinarComIA() {
 
         campoPositivoFinal.value = resultado.aspectos_positivos;
         campoMelhoriaFinal.value = resultado.aspectos_melhoria;
+        campoPositivoFinal.dataset.ia = campoPositivoFinal.value;
+        campoMelhoriaFinal.dataset.ia = campoMelhoriaFinal.value;
+        agendarSalvamento();
         ajustarTextareas();
         atualizarStatus("Textos revisados com IA. Confira o resultado antes de usar.");
         alert("Refinamento concluído. Os textos originais foram preservados.");
@@ -735,6 +742,44 @@ function montarJSON() {
     };
 }
 
+const CHAVE_RASCUNHO = "supervisaoSenar.rascunho.v1";
+let temporizadorSalvar = null;
+
+function salvarRascunho() {
+    try { localStorage.setItem(CHAVE_RASCUNHO, JSON.stringify(montarJSON())); }
+    catch (_) { /* armazenamento indisponível: segue sem salvar */ }
+}
+
+function agendarSalvamento() {
+    clearTimeout(temporizadorSalvar);
+    temporizadorSalvar = setTimeout(salvarRascunho, 600);
+}
+
+function restaurarRascunho() {
+    try {
+        const bruto = localStorage.getItem(CHAVE_RASCUNHO);
+        if (!bruto) return;
+        const dados = JSON.parse(bruto);
+        if (!dados || dados.schemaVersion !== SCHEMA_VERSION) return;
+        aplicarDados(dados);
+        atualizarStatus("Rascunho anterior restaurado (salvo em " + new Date(dados.geradoEm).toLocaleString("pt-BR") + ").");
+    } catch (_) { /* rascunho ilegível: ignora */ }
+}
+
+function limparAvaliacao(silencioso) {
+    if (!silencioso && !confirm("Apagar tudo o que está preenchido, inclusive o rascunho salvo neste aparelho?")) return;
+    clearTimeout(temporizadorSalvar);
+    try { localStorage.removeItem(CHAVE_RASCUNHO); } catch (_) {}
+    aplicarDados({ schemaVersion: SCHEMA_VERSION });
+    ["aspectos_positivos", "aspectos_melhoria"].forEach(id => delete document.getElementById(id).dataset.ia);
+    atualizarStatus("Formulário limpo.");
+}
+
+function confirmarItensSemNota() {
+    const r = montarJSON().resumo;
+    return r.semNota === 0 || confirm(r.semNota + " de " + r.totalItens + " itens estão sem nota. Continuar mesmo assim?");
+}
+
 function baixarJSON() {
     if (!validarDatas()) return;
     const blob = new Blob([JSON.stringify(montarJSON(), null, 2)], { type: "application/json" });
@@ -755,29 +800,7 @@ function definirSelectPorTexto(id, texto) {
     if (el) el.selectedIndex = op ? op.index : 0;
 }
 
-async function carregarJSON(input) {
-    const arquivo = input.files && input.files[0];
-    input.value = "";
-    if (!arquivo) return;
-
-    let dados;
-    try { dados = JSON.parse(await arquivo.text()); }
-    catch (_) { alert("O arquivo não é um JSON válido."); return; }
-
-    if (!dados || typeof dados !== "object" || !Number.isInteger(dados.schemaVersion)) {
-        alert("Este arquivo não parece ser uma avaliação deste aplicativo.");
-        return;
-    }
-    if (dados.schemaVersion > SCHEMA_VERSION) {
-        alert("Este arquivo foi gerado por uma versão mais nova do aplicativo.");
-        return;
-    }
-
-    const atual = montarJSON();
-    const temDados = atual.resumo.avaliados > 0 || atual.acao.descricao || atual.acao.evento ||
-        obterCamposTexto().some(id => valorTexto(id));
-    if (temDados && !confirm("Carregar este arquivo vai substituir o que está preenchido. Continuar?")) return;
-
+function aplicarDados(dados) {
     const notas = new Map();
     (Array.isArray(dados.avaliacao) ? dados.avaliacao : []).forEach(a => { if (a && a.id) notas.set(a.id, a.nota); });
     let carregados = 0, ignorados = 0;
@@ -810,11 +833,39 @@ async function carregarJSON(input) {
     const sup = document.getElementById("supervisor");
     const idSup = dados.envio && dados.envio.supervisorId;
     sup.value = Array.from(sup.options).some(o => o.value === idSup) ? idSup : "";
+    ajustarTextareas();
+    return { carregados, ignorados };
+}
 
+async function carregarJSON(input) {
+    const arquivo = input.files && input.files[0];
+    input.value = "";
+    if (!arquivo) return;
+
+    let dados;
+    try { dados = JSON.parse(await arquivo.text()); }
+    catch (_) { alert("O arquivo não é um JSON válido."); return; }
+
+    if (!dados || typeof dados !== "object" || !Number.isInteger(dados.schemaVersion)) {
+        alert("Este arquivo não parece ser uma avaliação deste aplicativo.");
+        return;
+    }
+    if (dados.schemaVersion > SCHEMA_VERSION) {
+        alert("Este arquivo foi gerado por uma versão mais nova do aplicativo.");
+        return;
+    }
+
+    const atual = montarJSON();
+    const temDados = atual.resumo.avaliados > 0 || atual.acao.descricao || atual.acao.evento ||
+        obterCamposTexto().some(id => valorTexto(id));
+    if (temDados && !confirm("Carregar este arquivo vai substituir o que está preenchido. Continuar?")) return;
+
+    const { carregados, ignorados } = aplicarDados(dados);
     ajustarTextareas();
     const msg = `Avaliação carregada: ${carregados} item(ns) com nota` + (ignorados ? `, ${ignorados} valor(es) ignorado(s) por serem inválidos ou desconhecidos.` : ".");
     atualizarStatus(msg);
     alert(msg);
+    agendarSalvamento();
 }
 
 function gerarPdfBlob(elemento) {
@@ -847,6 +898,7 @@ async function enviarPorEmail() {
         return;
     }
     if (!validarDatas()) return;
+    if (!confirmarItensSemNota()) return;
     if (botao.disabled) return;
 
     const rotuloOriginal = botao.textContent;
@@ -893,7 +945,7 @@ async function enviarPorEmail() {
             throw new Error((resultado && resultado.erro) || "Resposta inesperada do servidor.");
         }
         atualizarStatus("E-mail enviado para " + nomeSupervisor + " (PDF + JSON).");
-        alert("Relatório enviado para " + nomeSupervisor + ".");
+        if (confirm("Relatório enviado para " + nomeSupervisor + ".\n\nDeseja limpar o formulário para uma nova supervisão? (O rascunho salvo neste aparelho também será apagado.)")) limparAvaliacao(true);
     } catch (erro) {
         console.error("Erro ao enviar por e-mail:", erro);
         atualizarStatus("Não foi possível enviar o relatório por e-mail.", true);
@@ -908,6 +960,7 @@ async function enviarPorEmail() {
 
 function gerarPDF() {
     if (!validarDatas()) return;
+    if (!confirmarItensSemNota()) return;
 
     const texto = id => {
         const el = document.getElementById(id);
@@ -985,6 +1038,10 @@ function iniciarAplicacao() {
             });
         }
     });
+
+    restaurarRascunho();
+    document.addEventListener("input", agendarSalvamento);
+    document.addEventListener("change", agendarSalvamento);
 }
 
 window.addEventListener("DOMContentLoaded", iniciarAplicacao);
