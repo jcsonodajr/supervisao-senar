@@ -169,6 +169,37 @@ if ("serviceWorker" in navigator) {
         <div id="print-evento" class="print-text"></div>
     </div>
 
+    <div>
+        <label for="instrutor" class="block font-semibold mb-1">
+            Instrutor avaliado
+        </label>
+        <input id="instrutor" name="instrutor" type="text"
+            class="w-full border rounded p-3"
+            placeholder="Nome do instrutor">
+        <div id="print-instrutor" class="print-text"></div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+            <label for="turma" class="block font-semibold mb-1">
+                Turma
+            </label>
+            <input id="turma" name="turma" type="text"
+                class="w-full border rounded p-3"
+                placeholder="Identificação da turma">
+            <div id="print-turma" class="print-text"></div>
+        </div>
+        <div>
+            <label for="supervisor_avaliador" class="block font-semibold mb-1">
+                Supervisor que realizou a avaliação
+            </label>
+            <input id="supervisor_avaliador" name="supervisor_avaliador" type="text"
+                class="w-full border rounded p-3"
+                placeholder="Nome do supervisor">
+            <div id="print-supervisor_avaliador" class="print-text"></div>
+        </div>
+    </div>
+
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
             <label for="municipio_origem" class="block font-semibold mb-1">
@@ -683,6 +714,9 @@ function montarRelatorioPDF() {
             ${campo("Natureza da ação", valorSelect("natureza_acao"))}
             ${campo("Descrição da ação", valorTexto("descricao_acao"))}
             ${campo("Evento", valorTexto("evento"))}
+            ${campo("Instrutor avaliado", valorTexto("instrutor"))}
+            ${campo("Turma", valorTexto("turma"))}
+            ${campo("Supervisor que realizou a avaliação", valorTexto("supervisor_avaliador"))}
             ${campo("Município de origem", valorSelect("municipio_origem"))}
             ${campo("Município de destino", valorSelect("municipio_destino"))}
             ${campo("Período da ação", periodo)}
@@ -727,6 +761,9 @@ function montarJSON() {
             natureza: valorSelect("natureza_acao"),
             descricao: valorTexto("descricao_acao"),
             evento: valorTexto("evento"),
+            instrutor: valorTexto("instrutor"),
+            turma: valorTexto("turma"),
+            supervisorAvaliador: valorTexto("supervisor_avaliador"),
             municipioOrigem: valorSelect("municipio_origem"),
             municipioDestino: valorSelect("municipio_destino"),
             dataInicio: valorTexto("data_inicio"),
@@ -819,6 +856,9 @@ function aplicarDados(dados) {
     const texto = (id, v) => { document.getElementById(id).value = typeof v === "string" ? v : ""; };
     texto("descricao_acao", ac.descricao);
     texto("evento", ac.evento);
+    texto("instrutor", ac.instrutor);
+    texto("turma", ac.turma);
+    texto("supervisor_avaliador", ac.supervisorAvaliador);
     texto("data_inicio", validarDataCompleta(ac.dataInicio) ? ac.dataInicio : "");
     texto("data_fim", validarDataCompleta(ac.dataFim) ? ac.dataFim : "");
     definirSelectPorTexto("natureza_acao", ac.natureza);
@@ -972,6 +1012,10 @@ function gerarPDF() {
 
     document.getElementById("print-evento").textContent =
         texto("evento") || "Não informado";
+
+    ["instrutor", "turma", "supervisor_avaliador"].forEach(id => {
+        document.getElementById("print-" + id).textContent = texto(id) || "Não informado";
+    });
 
     const camposSelecao = [
         ["natureza_acao", "print-natureza_acao"],
