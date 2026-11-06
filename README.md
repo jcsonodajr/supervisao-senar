@@ -3,6 +3,7 @@
 
 Aplicativo web para apoiar o processo de supervisão de instrutoria do SENAR, com formulário de avaliação metodológica, registro de observações, elaboração de relatório em PDF e exportação de dados para futura automação.
 
+
 ## Acesso ao aplicativo
 
 **Aplicativo publicado:**  
