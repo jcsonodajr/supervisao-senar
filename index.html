@@ -162,11 +162,11 @@ if ("serviceWorker" in navigator) {
 
     <div>
         <label for="evento" class="block font-semibold mb-1">
-            Evento
+            Evento (número e título)
         </label>
         <input id="evento" name="evento" type="text"
             class="w-full border rounded p-3"
-            placeholder="Informe o evento">
+            placeholder="Ex.: 2026011379 - NOME DO EVENTO">
         <div id="print-evento" class="print-text"></div>
     </div>
 
@@ -199,6 +199,25 @@ if ("serviceWorker" in navigator) {
                 placeholder="Nome do supervisor">
             <div id="print-supervisor_avaliador" class="print-text"></div>
         </div>
+    </div>
+
+    <div>
+        <label for="tempo_supervisao" class="block font-semibold mb-1">
+            Tempo de supervisão (horas:minutos)
+        </label>
+        <input id="tempo_supervisao" name="tempo_supervisao" type="text"
+            inputmode="numeric" maxlength="5" onblur="normalizarTempo(this)"
+            class="w-full md:w-40 border rounded p-3" placeholder="ex.: 2:30">
+        <div id="print-tempo_supervisao" class="print-text"></div>
+    </div>
+
+    <div>
+        <label for="local_relatorio" class="block font-semibold mb-1">
+            Local do relatório (cidade)
+        </label>
+        <input id="local_relatorio" name="local_relatorio" type="text"
+            class="w-full md:w-80 border rounded p-3" placeholder="Cidade (o sistema acrescenta /MS)">
+        <div id="print-local_relatorio" class="print-text"></div>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -358,7 +377,9 @@ const questionario = [
         { id: "recursos.adequados_local", texto: "Estavam adequados ao local do evento." }
     ]},
     { categoria: "Avaliação", itens: [
-        { id: "avaliacao.diagnostica_formativa_somativa", texto: "Aplicou avaliações diagnósticas, formativas e somativas." },
+        { id: "avaliacao.aplicou_diagnostica", texto: "Aplicou avaliação diagnóstica." },
+        { id: "avaliacao.aplicou_formativa", texto: "Aplicou avaliação formativa." },
+        { id: "avaliacao.aplicou_somativa", texto: "Aplicou avaliação somativa." },
         { id: "avaliacao.compativel_participantes", texto: "Os procedimentos de avaliação foram compatíveis com as características dos participantes." },
         { id: "avaliacao.informou_acertos_erros", texto: "Informou aos participantes sobre seus acertos e erros, apresentando-lhes as respostas ou os comportamentos corretos." }
     ]},
@@ -718,6 +739,8 @@ function montarRelatorioPDF() {
             ${campo("Instrutor avaliado", valorTexto("instrutor"))}
             ${campo("Turma", valorTexto("turma"))}
             ${campo("Supervisor que realizou a avaliação", valorTexto("supervisor_avaliador"))}
+            ${campo("Tempo de supervisão", valorTexto("tempo_supervisao"))}
+            ${campo("Local", valorTexto("local_relatorio"))}
             ${campo("Município de origem", valorSelect("municipio_origem"))}
             ${campo("Município de destino", valorSelect("municipio_destino"))}
             ${campo("Período da ação", periodo)}
@@ -731,7 +754,15 @@ function montarRelatorioPDF() {
 }
 
 const SCHEMA_VERSION = 1;
-const VERSAO_APP = "2026.11.1";
+const VERSAO_APP = "2026.11.3";
+
+function normalizarTempo(el) {
+    let v = el.value.replace(/[^\d:]/g, "");
+    if (/^\d{1,2}$/.test(v)) v += ":00";
+    else if (/^\d{3,4}$/.test(v)) v = v.slice(0, -2) + ":" + v.slice(-2);
+    el.value = v;
+    agendarSalvamento();
+}
 
 function dataLocalISO() {
     const d = new Date();
@@ -757,6 +788,7 @@ function montarJSON() {
         schemaVersion: SCHEMA_VERSION,
         app: { versao: VERSAO_APP },
         geradoEm: new Date().toISOString(),
+        dataRelatorio: new Date().toLocaleDateString("pt-BR"),
         envio: { supervisorId: document.getElementById("supervisor").value || null },
         acao: {
             natureza: valorSelect("natureza_acao"),
@@ -765,6 +797,8 @@ function montarJSON() {
             instrutor: valorTexto("instrutor"),
             turma: valorTexto("turma"),
             supervisorAvaliador: valorTexto("supervisor_avaliador"),
+            tempoSupervisao: valorTexto("tempo_supervisao"),
+            local: valorTexto("local_relatorio"),
             municipioOrigem: valorSelect("municipio_origem"),
             municipioDestino: valorSelect("municipio_destino"),
             dataInicio: valorTexto("data_inicio"),
@@ -860,6 +894,8 @@ function aplicarDados(dados) {
     texto("instrutor", ac.instrutor);
     texto("turma", ac.turma);
     texto("supervisor_avaliador", ac.supervisorAvaliador);
+    texto("tempo_supervisao", ac.tempoSupervisao);
+    texto("local_relatorio", ac.local);
     texto("data_inicio", validarDataCompleta(ac.dataInicio) ? ac.dataInicio : "");
     texto("data_fim", validarDataCompleta(ac.dataFim) ? ac.dataFim : "");
     definirSelectPorTexto("natureza_acao", ac.natureza);
@@ -1014,7 +1050,7 @@ function gerarPDF() {
     document.getElementById("print-evento").textContent =
         texto("evento") || "Não informado";
 
-    ["instrutor", "turma", "supervisor_avaliador"].forEach(id => {
+    ["instrutor", "turma", "supervisor_avaliador", "tempo_supervisao", "local_relatorio"].forEach(id => {
         document.getElementById("print-" + id).textContent = texto(id) || "Não informado";
     });
 
