@@ -7,9 +7,9 @@ Aplicativo web (PWA) para apoiar a supervisão de instrutoria do SENAR: formulá
 
 ## Funcionalidades
 
-- Questionário com **50 itens em 7 categorias**: Objetivos, Conteúdo programático, Desenvolvimento das técnicas instrucionais, Recursos instrucionais, Avaliação, Plano instrucional e Postura do instrutor.
+- Questionário com **52 itens em 7 categorias**: Objetivos, Conteúdo programático, Desenvolvimento das técnicas instrucionais, Recursos instrucionais, Avaliação, Plano instrucional e Postura do instrutor.
 - Escala de 0 a 4: 4 — Sim, plenamente · 3 — Sim, parcialmente · 2 — Precisa melhorar · 1 — Não · 0 — Não observado.
-- Dados da ação: natureza, descrição, evento, instrutor avaliado, turma, supervisor que realizou a avaliação, municípios de origem e destino, período (DD/MM/AAAA, com validação).
+- Dados da ação: natureza, descrição, evento, instrutor avaliado, turma, supervisor que realizou a avaliação, tempo de supervisão (H:MM, ex.: 2:30), municípios de origem e destino, período (DD/MM/AAAA, com validação).
 - Rascunho de campo, aspectos positivos e aspectos de melhoria (cada texto guarda a versão original e a versão revisada).
 - **Refinamento com IA** dos textos (ver "Segurança e privacidade"). O texto original nunca é alterado, e o app pergunta antes de substituir uma versão revisada editada à mão.
 - **Salvamento automático** do formulário no navegador, com restauração ao reabrir e botão **Limpar avaliação**.
@@ -54,14 +54,17 @@ Cada avaliação exportada, baixada ou enviada por e-mail segue este formato (`s
   "schemaVersion": 1,
   "app": { "versao": "2026.11.1" },
   "geradoEm": "2026-11-05T18:30:00.000Z",
+  "dataRelatorio": "05/11/2026",
   "envio": { "supervisorId": "julio" },
   "acao": {
     "natureza": "", "descricao": "", "evento": "",
     "instrutor": "", "turma": "", "supervisorAvaliador": "",
     "municipioOrigem": "", "municipioDestino": "",
-    "dataInicio": "03/11/2026", "dataFim": "04/11/2026"
+    "dataInicio": "03/11/2026", "dataFim": "04/11/2026",
+    "tempoSupervisao": "2:30",
+    "local": ""
   },
-  "resumo": { "totalItens": 50, "avaliados": 47, "semNota": 3 },
+  "resumo": { "totalItens": 52, "avaliados": 47, "semNota": 3 },
   "avaliacao": [
     { "id": "objetivos.apresentou_objetivos", "categoria": "Objetivos",
       "item": "texto da pergunta", "nota": 4, "rotulo": "Sim, plenamente" }
@@ -77,7 +80,7 @@ Cada avaliação exportada, baixada ou enviada por e-mail segue este formato (`s
 Pontos importantes:
 
 - **`nota: null` significa "sem nota"**, que é diferente de `0` ("Não observado").
-- `geradoEm` está em UTC. As datas da ação ficam em DD/MM/AAAA, como no formulário.
+- `geradoEm` está em UTC; `dataRelatorio` é a data local (DD/MM/AAAA) de geração. `tempoSupervisao` segue o formato H:MM (ex.: 2:30), e `local` é a cidade do relatório. O campo Evento deve levar número e título como no sistema (ex.: `2026011379 - TÍTULO`), sem pré-preenchimento. As datas da ação ficam em DD/MM/AAAA, como no formulário.
 - Cada item tem um **ID estável** (`categoria.nome_do_item`).
 
 ### Regras para quem mantém o projeto
@@ -106,6 +109,24 @@ Observações:
 - O Tailwind via CDN é o modo de desenvolvimento da biblioteca. Funciona e fica guardado no aparelho, mas a recomendação oficial para produção é gerar um CSS próprio (o que exige Node).
 - **Teste antes de usar em campo:** abra o aplicativo com internet, ative o modo avião, feche o aplicativo e abra de novo.
 
+## Assistente de preenchimento do sistema oficial
+
+O arquivo `assistente-senar.user.js` é um script de usuário (Tampermonkey) que lê o JSON da avaliação e preenche a ficha de supervisão no sistema oficial, evitando a digitação repetida.
+
+**O que faz:** mostra um painel na página "Ação | Finalizar"; confere se o evento e o instrutor do JSON são os da ficha aberta; preenche as 52 notas, o tempo de supervisão, os aspectos positivos, os aspectos de melhoria, o local e a data; marca em amarelo o que preencheu e lista as pendências. **Nunca clica em Salvar.**
+
+**Instalação (uma vez):** instale a extensão Tampermonkey no Chrome ou Edge (se o navegador pedir, ative a permissão para scripts de usuário nos detalhes da extensão). No painel da extensão, escolha **Criar novo script**, apague o conteúdo, cole o arquivo inteiro e salve com `Ctrl+S`.
+
+**Uso:** abra a ficha de supervisão, escolha o JSON no painel verde, leia a conferência, confira Local e Data (vêm do JSON quando o app os preencheu e podem ser editados no painel), clique em **Preencher campos**, confira tudo e salve manualmente.
+
+**Cuidados:**
+
+- O JSON é lido apenas no computador. Nada é enviado a servidores, e o arquivo não contém senhas.
+- O sistema usa ISO-8859-1: aspas curvas, travessões e reticências são trocados por equivalentes simples, e outros caracteres incompatíveis viram "?" (o assistente avisa).
+- Cada item é localizado pelo código do campo e conferido pelo texto ao lado. Se o questionário do sistema mudar, o item não é preenchido e aparece nas pendências. Nesse caso, atualize a tabela `MAPA` no início do script.
+- Não preenche "Data de conclusão" e "Resultados" (aba Dados principais).
+- Se alterar o questionário do app, mantenha a tabela `MAPA` em dia.
+
 ## Segurança e privacidade
 
 As avaliações contêm observações sobre o desempenho de profissionais. Para o uso do aplicativo e a guarda dos arquivos gerados, siga as orientações internas de segurança e proteção de dados do SENAR (LGPD).
@@ -129,6 +150,7 @@ supervisao-senar/
 ├── index.html
 ├── manifest.json
 ├── sw.js
+├── assistente-senar.user.js
 ├── icon-180.png
 ├── icon-192.png
 ├── icon-512.png
@@ -173,4 +195,4 @@ HTML5, JavaScript, Tailwind CSS (via CDN, com cópia no aparelho), html2pdf.js (
 - Unificar a geração do relatório de impressão e do PDF.
 - Proteções adicionais no Worker da IA (limite de uso e origem permitida).
 - PDF com texto selecionável.
-- Preenchimento assistido do sistema oficial a partir do JSON.
+- Validar o assistente de preenchimento em fichas reais e ampliar o que ele preenche, se necessário.
